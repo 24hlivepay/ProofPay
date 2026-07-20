@@ -1,96 +1,149 @@
-import Card from "../components/Card";
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import InputField from "../components/InputField";
+import PrimaryButton from "../components/PrimaryButton";
 
-export default function BuyerDeposit({ setScreen }) {
+import { useEscrow } from "../context/EscrowContext";
+
+export default function BuyerDeposit() {
+
+  const navigate = useNavigate();
+
+  const { escrowData } = useEscrow();
+
   return (
-    <Card>
 
-      <button
-        onClick={() => setScreen("seller")}
-        className="text-blue-600 font-semibold mb-6"
-      >
-        ← Back
-      </button>
+    <div className="min-h-screen bg-slate-100">
 
-      <h1 className="text-5xl font-bold text-slate-900">
-        Deposit USDC
-      </h1>
+      <Navbar />
 
-      <p className="mt-4 text-lg text-slate-600">
-        Seller accepted your escrow request.
-      </p>
+      <main className="max-w-5xl mx-auto px-6 py-12">
 
-      <div className="mt-10 rounded-2xl border border-slate-200 p-6">
+        <button
+          onClick={() => navigate("/seller")}
+          className="mb-8 font-semibold text-blue-600 hover:text-blue-700"
+        >
+          ← Back
+        </button>
 
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Escrow ID</span>
-          <span className="font-semibold">PP-82F7A91</span>
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+
+          <h1 className="text-4xl font-bold text-slate-900">
+            Verify & Deposit
+          </h1>
+
+          <p className="mt-3 text-slate-600">
+            Enter the verification code received from the seller before depositing your USDC.
+          </p>
+
+          {/* Escrow Summary */}
+
+          <div className="mt-10 rounded-2xl border border-slate-200 p-8">
+
+            <h2 className="mb-6 text-2xl font-bold">
+              Escrow Summary
+            </h2>
+
+            <div className="space-y-4">
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Buyer Name</span>
+                <strong>{escrowData.buyerName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Seller Name</span>
+                <strong>{escrowData.sellerName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Product / Service</span>
+                <strong>{escrowData.productName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Amount</span>
+                <strong>{escrowData.amount} USDC</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Escrow ID</span>
+                <strong>{escrowData.escrowId}</strong>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Verification */}
+
+          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-8">
+
+            <h2 className="text-2xl font-bold text-blue-700">
+              Seller Verification
+            </h2>
+
+            <p className="mt-3 text-slate-700">
+              Enter the verification code shared by the seller.
+            </p>
+
+            <div className="mt-6">
+
+              <InputField
+                placeholder="Enter 6-digit Verification Code"
+              />
+
+            </div>
+
+            <button className="mt-6 w-full rounded-xl border border-blue-600 py-4 font-semibold text-blue-600 hover:bg-blue-600 hover:text-white transition">
+              Verify Code
+            </button>
+
+          </div>
+
+          {/* Deposit */}
+
+          <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
+
+            <h3 className="text-xl font-bold text-green-700">
+              Deposit Funds
+            </h3>
+
+            <p className="mt-3 text-slate-700">
+              Once verified, your funds will be locked inside the ProofPay smart contract until the transaction is completed.
+            </p>
+
+          </div>
+
+          {/* Warning */}
+
+          <div className="mt-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+
+            <h3 className="text-xl font-bold text-yellow-700">
+              Important Notice
+            </h3>
+
+            <p className="mt-3 text-slate-700">
+              After depositing, funds can only be released, refunded, or resolved through a dispute.
+            </p>
+
+          </div>
+
+          <div className="mt-10">
+
+            <PrimaryButton
+              onClick={() => navigate("/active")}
+            >
+              Deposit {escrowData.amount} USDC
+            </PrimaryButton>
+
+          </div>
+
         </div>
 
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Seller Wallet</span>
-          <span className="font-semibold">
-            0x7A42...91CD
-          </span>
-        </div>
+      </main>
 
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Network</span>
-          <span className="font-semibold">
-            ARC Testnet
-          </span>
-        </div>
+    </div>
 
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Currency</span>
-          <span className="font-semibold">
-            USDC
-          </span>
-        </div>
-
-        <div className="flex justify-between py-3">
-          <span className="text-slate-500">Deposit Amount</span>
-          <span className="text-2xl font-bold text-blue-600">
-            100 USDC
-          </span>
-        </div>
-
-      </div>
-
-      <div className="mt-8 rounded-xl bg-green-50 border border-green-200 p-5">
-
-        <h3 className="font-semibold text-green-700">
-          Seller Verified
-        </h3>
-
-        <p className="mt-3 text-sm text-slate-600">
-          The seller has successfully accepted your escrow request.
-          Once you deposit USDC, the funds will be locked inside the
-          ProofPay Smart Contract until you release, refund or dispute.
-        </p>
-
-      </div>
-
-      <div className="mt-8 rounded-xl bg-yellow-50 border border-yellow-200 p-5">
-
-        <h3 className="font-semibold text-yellow-700">
-          Important
-        </h3>
-
-        <p className="mt-3 text-sm text-slate-600">
-          After depositing, the payment cannot be cancelled directly.
-          The funds remain locked inside the escrow smart contract until
-          one of the available actions is executed.
-        </p>
-
-      </div>
-
-      <button
-        onClick={() => setScreen("active")}
-        className="mt-10 w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-xl text-lg font-semibold"
-      >
-        Deposit 100 USDC
-      </button>
-
-    </Card>
   );
 }

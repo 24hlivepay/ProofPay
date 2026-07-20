@@ -1,100 +1,180 @@
-import Card from "../components/Card";
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import PrimaryButton from "../components/PrimaryButton";
 
-export default function SellerAccept({ setScreen }) {
+import { useEscrow } from "../context/EscrowContext";
+
+export default function SellerAccept() {
+
+  const navigate = useNavigate();
+
+  const { escrowData } = useEscrow();
+
+  const verificationCode = "482731";
+
   return (
-    <Card>
 
-      <h1 className="text-5xl font-bold text-slate-900">
-        Seller Review
-      </h1>
+    <div className="min-h-screen bg-slate-100">
 
-      <p className="mt-4 text-lg text-slate-600">
-        Buyer has invited you to join this escrow transaction.
-      </p>
+      <Navbar />
 
-      <div className="mt-10 rounded-2xl border border-slate-200 p-6">
-
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Escrow ID</span>
-          <span className="font-semibold">PP-82F7A91</span>
-        </div>
-
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Network</span>
-          <span className="font-semibold">ARC Testnet</span>
-        </div>
-
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Currency</span>
-          <span className="font-semibold">USDC</span>
-        </div>
-
-        <div className="flex justify-between py-3 border-b">
-          <span className="text-slate-500">Amount</span>
-          <span className="font-semibold">100 USDC</span>
-        </div>
-
-        <div className="flex justify-between py-3">
-          <span className="text-slate-500">Buyer Wallet</span>
-          <span className="font-semibold">
-            0x91AF...3B12
-          </span>
-        </div>
-
-      </div>
-
-      <div className="mt-8">
-
-        <label className="block text-left mb-2 font-semibold">
-          Verification Code
-        </label>
-
-        <input
-          type="text"
-          placeholder="Enter verification code"
-          className="w-full border border-slate-300 rounded-xl p-4"
-        />
-
-      </div>
-
-      <div className="mt-8 rounded-xl bg-blue-50 border border-blue-200 p-5">
-
-        <p className="font-semibold text-blue-700">
-          Before accepting
-        </p>
-
-        <ul className="mt-3 text-left text-sm text-slate-600 space-y-2">
-
-          <li>✓ Verify buyer information</li>
-
-          <li>✓ Verify amount</li>
-
-          <li>✓ Verify secret code</li>
-
-          <li>✓ Accept only if everything is correct</li>
-
-        </ul>
-
-      </div>
-
-      <div className="mt-10 grid grid-cols-2 gap-4">
+      <main className="max-w-5xl mx-auto px-6 py-12">
 
         <button
-          onClick={() => setScreen("home")}
-          className="border border-slate-300 py-4 rounded-xl font-semibold hover:bg-slate-100"
+          onClick={() => navigate("/seller-landing")}
+          className="mb-8 font-semibold text-blue-600 hover:text-blue-700"
         >
-          Reject
+          ← Back
         </button>
 
-        <button
-          onClick={() => setScreen("deposit")}
-          className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold"
-        >
-          Accept Deal
-        </button>
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
 
-      </div>
+          <div className="flex items-center justify-between">
 
-    </Card>
+            <div>
+
+              <h1 className="text-4xl font-bold text-slate-900">
+                Review Escrow Request
+              </h1>
+
+              <p className="mt-3 text-slate-600">
+                Please review the escrow details before accepting this deal.
+              </p>
+
+            </div>
+
+            <div className="rounded-full bg-green-100 px-5 py-2 font-semibold text-green-700">
+              Wallet Connected
+            </div>
+
+          </div>
+
+          {/* Wallet */}
+
+          <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
+
+            <div className="flex justify-between">
+
+              <span className="text-slate-600">
+                Connected Wallet
+              </span>
+
+              <strong>
+                0x91AF...3B12
+              </strong>
+
+            </div>
+
+          </div>
+
+          {/* Escrow Summary */}
+
+          <div className="mt-8 rounded-2xl border border-slate-200 p-8">
+
+            <h2 className="mb-6 text-2xl font-bold">
+              Escrow Summary
+            </h2>
+
+            <div className="space-y-4">
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Buyer Name</span>
+                <strong>{escrowData.buyerName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Seller Name</span>
+                <strong>{escrowData.sellerName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Product / Service</span>
+                <strong>{escrowData.productName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Amount</span>
+                <strong>{escrowData.amount} USDC</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Escrow ID</span>
+                <strong>{escrowData.escrowId}</strong>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Verification */}
+
+          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-8">
+
+            <h2 className="text-2xl font-bold text-blue-700">
+              Verification Code
+            </h2>
+
+            <p className="mt-3 text-slate-700">
+              Share this verification code with the buyer.
+            </p>
+
+            <div className="mt-6 rounded-xl border bg-white p-6 text-center">
+
+              <p className="text-sm text-slate-500">
+                Generated Code
+              </p>
+
+              <h1 className="mt-2 text-5xl font-bold tracking-widest">
+                {verificationCode}
+              </h1>
+
+            </div>
+
+          </div>
+
+          {/* Security */}
+
+          <div className="mt-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+
+            <h3 className="text-lg font-bold text-yellow-700">
+              Before Accepting
+            </h3>
+
+            <ul className="mt-4 space-y-2 text-slate-700">
+
+              <li>✓ Verify buyer information.</li>
+              <li>✓ Verify product/service.</li>
+              <li>✓ Verify amount.</li>
+              <li>✓ Share the verification code only with the buyer.</li>
+
+            </ul>
+
+          </div>
+
+          {/* Buttons */}
+
+          <div className="mt-10 grid grid-cols-2 gap-4">
+
+            <button
+              onClick={() => navigate("/")}
+              className="rounded-xl border border-slate-300 py-4 font-semibold hover:bg-slate-100"
+            >
+              Reject Deal
+            </button>
+
+            <PrimaryButton
+              onClick={() => navigate("/deposit")}
+            >
+              Accept Deal
+            </PrimaryButton>
+
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
   );
 }

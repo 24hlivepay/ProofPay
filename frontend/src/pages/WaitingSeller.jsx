@@ -1,98 +1,164 @@
-import Card from "../components/Card";
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import PrimaryButton from "../components/PrimaryButton";
 
-export default function WaitingSeller({ setScreen }) {
+import { useEscrow } from "../context/EscrowContext";
+
+export default function WaitingSeller() {
+
+  const navigate = useNavigate();
+
+  const { escrowData } = useEscrow();
+
   return (
-    <Card>
-      <button
-        onClick={() => setScreen("link")}
-        className="text-blue-600 font-semibold mb-6"
-      >
-        ← Back
-      </button>
+    <div className="min-h-screen bg-slate-100">
 
-      <h1 className="text-5xl font-bold text-slate-900">
-        Waiting For Seller
-      </h1>
+      <Navbar />
 
-      <p className="mt-4 text-lg text-slate-600">
-        The secure link has been generated successfully.
-      </p>
+      <main className="max-w-5xl mx-auto px-6 py-12">
 
-      <div className="mt-10 flex justify-center">
-        <div className="h-24 w-24 rounded-full border-8 border-blue-200 border-t-blue-600 animate-spin"></div>
-      </div>
+        <button
+          onClick={() => navigate("/generate-link")}
+          className="mb-8 font-semibold text-blue-600 hover:text-blue-700"
+        >
+          ← Back
+        </button>
 
-      <div className="mt-10 rounded-2xl bg-blue-50 border border-blue-200 p-6 text-left">
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
 
-        <h3 className="font-semibold text-blue-700">
-          Current Status
-        </h3>
+          <div className="flex items-center justify-between">
 
-        <div className="mt-5 space-y-3">
+            <div>
 
-          <div className="flex justify-between">
-            <span>Escrow Status</span>
-            <span className="font-semibold text-yellow-600">
+              <h1 className="text-4xl font-bold text-slate-900">
+                Waiting for Seller
+              </h1>
+
+              <p className="mt-3 text-slate-600">
+                Your escrow request has been created successfully.
+              </p>
+
+            </div>
+
+            <div className="rounded-full bg-yellow-100 px-5 py-2 font-semibold text-yellow-700">
               Waiting
-            </span>
+            </div>
+
           </div>
 
-          <div className="flex justify-between">
-            <span>Network</span>
-            <span className="font-semibold">
-              ARC Testnet
-            </span>
+          {/* Loading */}
+
+          <div className="mt-10 flex justify-center">
+
+            <div className="h-24 w-24 animate-spin rounded-full border-8 border-blue-200 border-t-blue-600"></div>
+
           </div>
 
-          <div className="flex justify-between">
-            <span>Currency</span>
-            <span className="font-semibold">
-              USDC
-            </span>
+          {/* Escrow Summary */}
+
+          <div className="mt-10 rounded-2xl border border-slate-200 p-8">
+
+            <h2 className="mb-6 text-2xl font-bold">
+              Escrow Summary
+            </h2>
+
+            <div className="space-y-4">
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Buyer Name</span>
+                <strong>{escrowData.buyerName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Seller Name</span>
+                <strong>{escrowData.sellerName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Product / Service</span>
+                <strong>{escrowData.productName}</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Amount</span>
+                <strong>{escrowData.amount} USDC</strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-500">Escrow ID</span>
+                <strong>{escrowData.escrowId}</strong>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Progress */}
+
+          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-8">
+
+            <h2 className="mb-6 text-2xl font-bold text-blue-700">
+              Escrow Progress
+            </h2>
+
+            <div className="space-y-4">
+
+              <div>✅ Escrow Created</div>
+
+              <div>✅ Secure Link Generated</div>
+
+              <div>✅ Link Shared</div>
+
+              <div>🟡 Seller Opening Link...</div>
+
+              <div>⚪ Seller Connected Wallet</div>
+
+              <div>⚪ Seller Accepted Deal</div>
+
+              <div>⚪ Verification Code Ready</div>
+
+              <div>⚪ Buyer Deposit Pending</div>
+
+            </div>
+
+          </div>
+
+          {/* Info */}
+
+          <div className="mt-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+
+            <h3 className="text-lg font-bold text-yellow-700">
+              Waiting for Seller
+            </h3>
+
+            <p className="mt-3 text-slate-700">
+              Once the seller opens your secure link, connects their wallet,
+              and accepts the deal, you will receive a verification code before
+              depositing your USDC.
+            </p>
+
+          </div>
+
+          {/* Buttons */}
+
+          <div className="mt-10 grid grid-cols-2 gap-4">
+
+            <button className="rounded-xl border py-4 font-semibold hover:bg-slate-100">
+              Refresh Status
+            </button>
+
+            <PrimaryButton
+              onClick={() => navigate("/seller-landing")}
+            >
+              Seller Accepted (Demo)
+            </PrimaryButton>
+
           </div>
 
         </div>
 
-      </div>
+      </main>
 
-      <div className="mt-8 rounded-xl border border-yellow-200 bg-yellow-50 p-5">
-
-        <p className="text-yellow-700 font-semibold">
-          Waiting for seller to:
-        </p>
-
-        <ul className="mt-3 text-sm text-slate-600 space-y-2 text-left">
-
-          <li>✓ Open secure link</li>
-
-          <li>✓ Connect wallet</li>
-
-          <li>✓ Verify secret code</li>
-
-          <li>✓ Accept escrow request</li>
-
-        </ul>
-
-      </div>
-
-      <div className="mt-10 space-y-4">
-
-        <button
-          onClick={() => setScreen("seller")}
-          className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold"
-        >
-          Seller Accepted (Demo)
-        </button>
-
-        <button
-          onClick={() => setScreen("home")}
-          className="w-full border border-slate-300 hover:bg-slate-100 py-4 rounded-xl font-semibold"
-        >
-          Cancel
-        </button>
-
-      </div>
-
-    </Card>
+    </div>
   );
 }
