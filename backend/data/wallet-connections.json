@@ -1,0 +1,23 @@
+[
+  {
+    "address": "0xD979e5D9EEB1126C75a7B215Ee0f79895Fe091AC",
+    "message": "Sign in to ProofPay.\n\nWallet: 0xD979e5D9EEB1126C75a7B215Ee0f79895Fe091AC\nIssued at: 2026-07-25T19:12:14.089Z\n\nThis signature proves you control this wallet. It does not create a transaction or charge gas.",
+    "signature": "0xceb657db302eecdbf5f7937b5adeb52229d71d7a960526395074329773a711552a9db8ed7b473120c6a2c0543ea4a4e9bb956f6e053a7fa5482eec27cb321b3d1b",
+    "signedAt": "2026-07-25T19:12:14.089Z",
+    "recordedAt": "2026-07-25T19:12:16.783Z"
+  },
+  {
+    "address": "0xa15a80EB774a4C2b1e78FbB954B0ee273F9eDdbf",
+    "message": "Sign in to ProofPay.\n\nWallet: 0xa15a80EB774a4C2b1e78FbB954B0ee273F9eDdbf\nIssued at: 2026-07-25T18:23:00.622Z\n\nThis signature proves you control this wallet. It does not create a transaction or charge gas.",
+    "signature": "0x9a54dd7b7426e178019f6f52cd2d2935f8a91942ebaa47c125f57174088d70441d4a6b25eea23dccd3ea199ad060f2431f796801f4539ec00772c9861821582c1b",
+    "signedAt": "2026-07-25T18:23:00.622Z",
+    "recordedAt": "2026-07-25T18:23:02.816Z"
+  },
+  {
+    "address": "0x408570441054B712a9F8b4c96101915C75e3f044",
+    "message": "Sign in to ProofPay.\n\nWallet: 0x408570441054B712a9F8b4c96101915C75e3f044\nIssued at: 2026-07-25T19:11:36.446Z\n\nThis signature proves you control this wallet. It does not create a transaction or charge gas.",
+    "signature": "0x51b7bfec413ec9400f6ffaef9b017d63af1d87889f8ca384c7637f6d58d835ea3254135a321a8ac5655af89f7ae7bad9b81d85ccc5783eccd505af5174ad9eb11b",
+    "signedAt": "2026-07-25T19:11:36.446Z",
+    "recordedAt": "2026-07-25T19:11:39.607Z"
+  }
+]

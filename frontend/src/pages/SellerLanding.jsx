@@ -126,7 +126,7 @@ export default function SellerLanding() {
           <div className="mt-10">
 
             <PrimaryButton
-              onClick={() => navigate("/seller")}
+              onClick={() => navigate("/dashboard/selling")}
             >
               Connect Wallet
             </PrimaryButton>

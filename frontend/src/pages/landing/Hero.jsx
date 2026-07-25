@@ -1,71 +1,76 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { connectWalletWithOptions, getWalletErrorMessage } from "../../services/wallet";
+import api from "../../services/api";
+
 export default function Hero() {
+  const navigate = useNavigate();
+  const [connecting, setConnecting] = useState(false);
+  const [walletStatus, setWalletStatus] = useState("");
+  const [walletError, setWalletError] = useState("");
+
+  async function handleWalletConnection() {
+    try {
+      setConnecting(true);
+      setWalletError("");
+      const walletSession = await connectWalletWithOptions({
+        requireSignature: true,
+        onStatus: setWalletStatus,
+      });
+
+      await api.post("/wallet/connect", walletSession);
+      setWalletStatus("Wallet connected to Arc Testnet. Opening your dashboard...");
+      navigate("/dashboard");
+    } catch (error) {
+      setWalletStatus("");
+      setWalletError(error.message || getWalletErrorMessage(error));
+    } finally {
+      setConnecting(false);
+    }
+  }
+
   return (
-    <section className="max-w-7xl mx-auto px-6 py-24">
-
-      <div className="grid lg:grid-cols-2 gap-16 items-center">
-
-        {/* Left Side */}
-
-        <div>
-
-          <span className="inline-flex items-center rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
-            🚀 Powered by ARC Blockchain
-          </span>
-
-          <h1 className="mt-8 text-5xl md:text-6xl font-extrabold leading-tight text-slate-900">
-            Secure P2P
-            <br />
-            Crypto Escrow
-          </h1>
-
-          <p className="mt-8 text-xl leading-9 text-slate-600">
-            Trade with confidence using blockchain-powered escrow.
-            Funds remain protected inside smart contracts until
-            both buyer and seller complete the transaction.
-          </p>
-
+    <section className="flex min-h-screen items-center justify-center px-6 py-20">
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-center text-center">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-3xl font-bold text-white shadow-lg shadow-blue-200">
+          P
         </div>
 
-        {/* Right Side */}
+        <p className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+          ProofPay
+        </p>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-xl">
+        <h1 className="mt-8 max-w-3xl text-5xl font-extrabold leading-[1.08] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
+          Secure P2P
+          <span className="block text-blue-600">Crypto Escrow</span>
+        </h1>
 
-          <h2 className="text-2xl font-bold text-slate-900">
-            Escrow Preview
-          </h2>
+        <div className="mt-10 flex w-full max-w-xs flex-col gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="w-full rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
+          >
+            Continue with Email
+          </button>
 
-          <div className="mt-8 space-y-5">
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">Network</span>
-              <span className="font-semibold">ARC</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">Currency</span>
-              <span className="font-semibold">USDC</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">Security</span>
-              <span className="font-semibold text-green-600">
-                Smart Contract
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">Status</span>
-              <span className="font-semibold text-blue-600">
-                Ready
-              </span>
-            </div>
-
-          </div>
-
+          <button
+            type="button"
+            onClick={handleWalletConnection}
+            disabled={connecting}
+            className="w-full rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {connecting ? "Connecting..." : "Connect with Wallet"}
+          </button>
         </div>
 
+        {walletStatus && <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">{walletStatus}</p>}
+        {walletError && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{walletError}</p>}
+
+        <p className="mt-5 text-sm text-slate-400">
+          Choose the option that is easiest for you.
+        </p>
       </div>
-
     </section>
   );
 }
