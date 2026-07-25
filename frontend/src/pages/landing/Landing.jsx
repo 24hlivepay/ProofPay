@@ -1,27 +1,9 @@
-import Navbar from "../../components/Navbar";
-
 import Hero from "./Hero";
-import Features from "./Features";
-import HowItWorks from "./HowItWorks";
-import FAQ from "./FAQ";
-import Footer from "./Footer";
 
 export default function Landing() {
   return (
-    <main className="min-h-screen bg-white">
-
-      <Navbar />
-
+    <main className="min-h-screen bg-white text-slate-900">
       <Hero />
-
-      <Features />
-
-      <HowItWorks />
-
-      <FAQ />
-
-      <Footer />
-
     </main>
   );
 }

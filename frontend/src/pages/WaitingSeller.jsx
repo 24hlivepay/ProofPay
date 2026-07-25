@@ -1,16 +1,135 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import Navbar from "../components/Navbar";
 import PrimaryButton from "../components/PrimaryButton";
 
+import api from "../services/api";
 import { useEscrow } from "../context/EscrowContext";
 
 export default function WaitingSeller() {
 
   const navigate = useNavigate();
 
-  const { escrowData } = useEscrow();
+  const { escrowData, setEscrowData } = useEscrow();
+
+  const [copied, setCopied] = useState(false);
+
+  const secureLink =
+    `http://localhost:5173/escrow/${escrowData.escrowId}`;
+
+  /*
+  |--------------------------------------------------------------------------
+  | Copy Secure Link
+  |--------------------------------------------------------------------------
+  */
+
+  async function copyLink() {
+
+    try {
+
+      await navigator.clipboard.writeText(secureLink);
+
+      setCopied(true);
+
+      setTimeout(() => {
+
+        setCopied(false);
+
+      }, 2000);
+
+    } catch (error) {
+
+      alert("Unable to copy link.");
+
+    }
+
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Share Secure Link
+  |--------------------------------------------------------------------------
+  */
+
+  async function shareLink() {
+
+    try {
+
+      if (navigator.share) {
+
+        await navigator.share({
+
+          title: "ProofPay Escrow",
+
+          text: "Open this secure escrow.",
+
+          url: secureLink,
+
+        });
+
+      } else {
+
+        await navigator.clipboard.writeText(secureLink);
+
+        alert(
+          "Sharing is not supported.\n\nSecure link copied to clipboard."
+        );
+
+      }
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Poll Seller Status
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+
+    if (!escrowData.escrowId) return;
+
+    const interval = setInterval(async () => {
+
+      try {
+
+        const response = await api.get(
+          `/escrow/${escrowData.escrowId}/status`
+        );
+
+        console.log("Buyer Polling:", response.data);
+
+        setEscrowData(response.data.escrow);
+
+        if (response.data.escrow.status === "Seller Accepted") {
+
+          clearInterval(interval);
+
+          navigate("/deposit", { state: { backTo: "/pending-orders" } });
+
+        }
+
+      } catch (error) {
+
+        console.log(error);
+
+      }
+
+    }, 2000);
+
+    return () => clearInterval(interval);
+
+  }, [escrowData.escrowId, navigate]);
 
   return (
+
     <div className="min-h-screen bg-slate-100">
 
       <Navbar />
@@ -18,10 +137,10 @@ export default function WaitingSeller() {
       <main className="max-w-5xl mx-auto px-6 py-12">
 
         <button
-          onClick={() => navigate("/generate-link")}
+          onClick={() => navigate("/dashboard/buying")}
           className="mb-8 font-semibold text-blue-600 hover:text-blue-700"
         >
-          ← Back
+          ← Back to Buying Escrows
         </button>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
@@ -44,13 +163,71 @@ export default function WaitingSeller() {
               Waiting
             </div>
 
+          </div>          {/* Secure Link */}
+
+          <div className="mt-10 rounded-2xl border border-blue-200 bg-blue-50 p-8">
+
+            <h2 className="text-2xl font-bold text-blue-700">
+              Secure Link
+            </h2>
+
+            <div className="mt-8 space-y-6">
+
+              <div>
+
+                <p className="text-slate-500">
+                  Escrow ID
+                </p>
+
+                <h3 className="mt-2 text-3xl font-bold">
+                  {escrowData.escrowId}
+                </h3>
+
+              </div>
+
+              <div>
+
+                <p className="text-slate-500">
+                  Secure Link
+                </p>
+
+                <div className="mt-3 rounded-xl border bg-white p-4">
+
+                  <p className="break-all text-blue-600">
+
+                    {secureLink}
+
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
 
-          {/* Loading */}
+          {/* Actions */}
 
-          <div className="mt-10 flex justify-center">
+          <div className="mt-8 grid grid-cols-2 gap-4">
 
-            <div className="h-24 w-24 animate-spin rounded-full border-8 border-blue-200 border-t-blue-600"></div>
+            <button
+              onClick={copyLink}
+              className="rounded-xl border py-4 font-semibold hover:bg-slate-100 transition"
+            >
+
+              {copied ? "✅ Link Copied" : "📋 Copy Link"}
+
+            </button>
+
+            <button
+              onClick={shareLink}
+              className="rounded-xl border py-4 font-semibold hover:bg-slate-100 transition"
+            >
+
+              📤 Share Link
+
+            </button>
 
           </div>
 
@@ -91,74 +268,61 @@ export default function WaitingSeller() {
 
             </div>
 
-          </div>
-
-          {/* Progress */}
-
-          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-8">
-
-            <h2 className="mb-6 text-2xl font-bold text-blue-700">
-              Escrow Progress
-            </h2>
-
-            <div className="space-y-4">
-
-              <div>✅ Escrow Created</div>
-
-              <div>✅ Secure Link Generated</div>
-
-              <div>✅ Link Shared</div>
-
-              <div>🟡 Seller Opening Link...</div>
-
-              <div>⚪ Seller Connected Wallet</div>
-
-              <div>⚪ Seller Accepted Deal</div>
-
-              <div>⚪ Verification Code Ready</div>
-
-              <div>⚪ Buyer Deposit Pending</div>
-
             </div>
 
-          </div>
+          {/* Live Status */}
 
-          {/* Info */}
+<div className="mt-8 rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-10 text-center shadow-sm">
 
-          <div className="mt-8 rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+  <div className="text-7xl">
+    ⏳
+  </div>
 
-            <h3 className="text-lg font-bold text-yellow-700">
-              Waiting for Seller
-            </h3>
+  <h2 className="mt-6 text-4xl font-bold text-blue-700">
+    Waiting for Seller
+  </h2>
 
-            <p className="mt-3 text-slate-700">
-              Once the seller opens your secure link, connects their wallet,
-              and accepts the deal, you will receive a verification code before
-              depositing your USDC.
-            </p>
+  <p className="mt-5 text-xl text-slate-700">
+    Your secure ProofPay escrow has been created successfully.
+  </p>
 
-          </div>
+  <p className="mt-3 text-lg leading-8 text-slate-600">
+    The seller has not opened your secure link yet.
+    <br />
+    Once the seller connects the wallet and accepts the escrow,
+    this page will automatically continue to the deposit page.
+  </p>
 
-          {/* Buttons */}
+</div>
 
-          <div className="mt-10 grid grid-cols-2 gap-4">
+{/* Auto Status */}
 
-            <button className="rounded-xl border py-4 font-semibold hover:bg-slate-100">
-              Refresh Status
-            </button>
+<div className="mt-8 rounded-xl border border-green-200 bg-green-50 p-5 text-center">
 
-            <PrimaryButton
-              onClick={() => navigate("/seller-landing")}
-            >
-              Seller Accepted (Demo)
-            </PrimaryButton>
+  <p className="font-semibold text-green-700">
+    ✅ ProofPay automatically checks the seller status every 2 seconds.
+  </p>
 
-          </div>
+</div>
 
-        </div>
+{/* Continue */}
 
-      </main>
+<div className="mt-10">
 
-    </div>
-  );
+  <PrimaryButton
+    onClick={() => navigate("/dashboard/buying")}
+  >
+    Back to Buying Escrows
+  </PrimaryButton>
+
+</div>
+
+</div>
+
+</main>
+
+</div>
+
+);
+
 }

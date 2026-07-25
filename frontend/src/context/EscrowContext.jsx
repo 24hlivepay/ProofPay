@@ -1,15 +1,6 @@
-import { createContext, useContext, useState } from "react";
-
-/*
-   Ye hamara global context hai.
-   Isme escrow ki sari information store hogi.
-*/
+import { createContext, useContext, useEffect, useState } from "react";
 
 const EscrowContext = createContext();
-
-/*
-   Ye component poori app ko data provide karega.
-*/
 
 export function EscrowProvider({ children }) {
 
@@ -31,20 +22,94 @@ export function EscrowProvider({ children }) {
 
     escrowId: "",
 
-    verificationCode: ""
+    verificationCode: "",
+
+    status: "Pending"
 
   });
+
+  const [allEscrows, setAllEscrows] = useState(() => {
+
+    const savedEscrows = localStorage.getItem("proofpay-escrows");
+
+    return savedEscrows ? JSON.parse(savedEscrows) : [];
+
+  });
+
+  useEffect(() => {
+
+    localStorage.setItem(
+      "proofpay-escrows",
+      JSON.stringify(allEscrows)
+    );
+
+  }, [allEscrows]);
+
+
+
+  function saveEscrow(newEscrow) {
+
+    setEscrowData(newEscrow);
+
+    setAllEscrows((previousEscrows) => [
+
+      ...previousEscrows,
+
+      newEscrow,
+
+    ]);
+
+  }
+
+  function updateEscrow(updatedEscrow) {
+
+    setEscrowData(updatedEscrow);
+
+    setAllEscrows((previousEscrows) =>
+
+      previousEscrows.map((escrow) =>
+
+        escrow.escrowId === updatedEscrow.escrowId
+
+          ? updatedEscrow
+
+          : escrow
+
+      )
+
+    );
+
+  }
+
+  function clearEscrows() {
+
+    setAllEscrows([]);
+
+    localStorage.removeItem("proofpay-escrows");
+
+  }
 
   return (
 
     <EscrowContext.Provider
       value={{
-        escrowData,
-        setEscrowData,
-      }}
-    >
 
-      {children}
+        escrowData,
+
+        setEscrowData,
+
+        allEscrows,
+
+        setAllEscrows,
+
+        saveEscrow,
+
+        updateEscrow,
+
+        clearEscrows,
+
+      }}
+    >      {children}
 
     </EscrowContext.Provider>
 
@@ -52,15 +117,8 @@ export function EscrowProvider({ children }) {
 
 }
 
-/*
-   Ye custom hook hai.
-   Kisi bhi page se sirf
-
-   const { escrowData } = useEscrow();
-
-   likh kar data mil jayega.
-*/
-
 export function useEscrow() {
+
   return useContext(EscrowContext);
+
 }

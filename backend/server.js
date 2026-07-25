@@ -1,0 +1,810 @@
+import dotenv from "dotenv";
+import axios from "axios";
+import crypto from "crypto";
+
+import express from "express";
+import cors from "cors";
+import fs from "fs";
+import path from "path";
+import { validateCircleConfig } from "./services/circleService.js";
+
+dotenv.config();
+
+validateCircleConfig();
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+const CIRCLE_API_URL = "https://api.circle.com";
+
+const circleHeaders = {
+  Authorization: `Bearer ${process.env.CIRCLE_API_KEY}`,
+  "Content-Type": "application/json",
+};
+
+// Temporary Memory Database
+const escrows = {};
+const PENDING_ESCROW_EXPIRY_MS = 12 * 60 * 60 * 1000;
+
+
+const dataFile = path.join(process.cwd(), "data", "escrows.json");
+const walletConnectionsFile = path.join(process.cwd(), "data", "wallet-connections.json");
+console.log("JSON FILE PATH:", dataFile);
+
+function loadEscrows() {
+
+  try {
+
+    if (!fs.existsSync(dataFile)) {
+
+      fs.writeFileSync(dataFile, "[]");
+
+    }
+
+    const records = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+
+    if (expirePendingEscrows(records)) {
+      fs.writeFileSync(dataFile, JSON.stringify(records, null, 2));
+    }
+
+    return records;
+
+  } catch (error) {
+
+    console.log("Load Error:", error);
+
+    return [];
+
+  }
+
+}
+
+function expirePendingEscrows(records) {
+  const now = Date.now();
+  let changed = false;
+
+  for (const escrow of records) {
+    const isPending =
+      escrow.status === "Waiting Seller" ||
+      escrow.status === "Seller Accepted";
+    const createdAt = Number(escrow.createdAt);
+
+    if (!isPending || !createdAt || now < createdAt + PENDING_ESCROW_EXPIRY_MS) {
+      continue;
+    }
+
+    escrow.status = "Cancelled";
+    escrow.cancellationReason = "Expired after 12 hours";
+    escrow.cancelledAt = now;
+    escrow.expiresAt = createdAt + PENDING_ESCROW_EXPIRY_MS;
+    escrows[escrow.escrowId] = escrow;
+    changed = true;
+  }
+
+  return changed;
+}
+
+function saveEscrows(data) {
+  console.log("Writing to:", dataFile);
+
+  try {
+
+    fs.writeFileSync(
+      dataFile,
+      JSON.stringify(data, null, 2)
+    );
+
+    console.log("✅ JSON File Saved");
+    console.log(fs.readFileSync(dataFile, "utf8"));
+
+  } catch (error) {
+
+    console.log("❌ SAVE ERROR:", error);
+
+  }
+
+}
+
+function loadWalletConnections() {
+  try {
+    if (!fs.existsSync(walletConnectionsFile)) {
+      fs.writeFileSync(walletConnectionsFile, "[]");
+    }
+
+    return JSON.parse(fs.readFileSync(walletConnectionsFile, "utf8"));
+  } catch (error) {
+    console.log("Wallet connection load error:", error);
+    return [];
+  }
+}
+
+function saveWalletConnections(connections) {
+  fs.writeFileSync(walletConnectionsFile, JSON.stringify(connections, null, 2));
+}
+
+app.post("/api/wallet/connect", (req, res) => {
+  const { address, message, signature, signedAt } = req.body;
+
+  if (!address || !message || !signature || !signedAt) {
+    return res.status(400).json({
+      success: false,
+      message: "Wallet address and signature are required.",
+    });
+  }
+
+  const connections = loadWalletConnections();
+  const normalizedAddress = address.toLowerCase();
+  const connection = {
+    address,
+    message,
+    signature,
+    signedAt,
+    recordedAt: new Date().toISOString(),
+  };
+  const existingIndex = connections.findIndex(
+    (item) => item.address?.toLowerCase() === normalizedAddress
+  );
+
+  if (existingIndex >= 0) {
+    connections[existingIndex] = connection;
+  } else {
+    connections.push(connection);
+  }
+
+  saveWalletConnections(connections);
+
+  return res.json({ success: true, address });
+});
+
+
+app.post("/api/circle/request-email-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const response = await axios.post(
+      `${CIRCLE_API_URL}/v1/w3s/users/email/token`,
+
+      {
+        idempotencyKey: crypto.randomUUID(),
+        encryptionKey: crypto.randomUUID(),
+        deviceId: crypto.randomUUID(),
+        userToken: crypto.randomUUID(),
+        email: email,
+
+        blockchains: ["ARB-SEPOLIA"],
+      },
+      {
+        headers: circleHeaders,
+      }
+    );
+    console.log("Circle Response:", response.data);
+    console.log("User created successfully");
+
+    return res.json(response.data);
+
+  } catch (error) {
+    console.log(error.response?.data || error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/circle/initialize-user", async (req, res) => {
+
+  try {
+
+    const { userToken } = req.body;
+
+    if (!userToken) {
+      return res.status(400).json({
+        success: false,
+        message: "User token is required",
+      });
+    }
+
+    const response = await axios.post(
+      `${CIRCLE_API_URL}/v1/w3s/user/initialize`,
+      {
+        idempotencyKey: crypto.randomUUID(),
+        accountType: "SCA",
+        blockchains: ["ARC-TESTNET"],
+      },
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+      }
+    );
+
+    return res.json(response.data);
+
+  } catch (error) {
+
+    console.log(error.response?.data || error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    });
+
+  }
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Health Check
+|--------------------------------------------------------------------------
+*/
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "ProofPay Backend Running 🚀",
+  });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Create Escrow
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow", (req, res) => {
+  console.log("BODY:", req.body);
+  const escrowId =
+    "PP-" +
+    Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  const escrow = {
+    ...req.body,
+    escrowId,
+    status: "Waiting Seller",
+    verificationCode: "",
+
+    isPermanent: false,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + PENDING_ESCROW_EXPIRY_MS,
+  };
+
+  const allEscrows = loadEscrows();
+
+  allEscrows.push(escrow);
+
+  saveEscrows(allEscrows);
+
+  console.log("Saved to JSON:", allEscrows);
+
+  escrows[escrowId] = escrow;
+
+
+  console.log("ESCROW:", escrow);
+  res.json({
+    success: true,
+    escrow,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Get Escrow
+|--------------------------------------------------------------------------
+*/
+
+app.get("/api/escrow/:id", (req, res) => {
+
+  const allEscrows = loadEscrows();
+
+  const escrow = allEscrows.find(
+    (e) => e.escrowId === req.params.id
+  );
+
+  if (escrow) {
+    escrows[req.params.id] = escrow;
+    console.log("✅ Escrow Loaded From JSON");
+  }
+
+
+  console.log("GET ESCROW:", req.params.id);
+  console.log(escrow);
+
+  if (!escrow) {
+
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+
+  }
+
+  res.json({
+    success: true,
+    escrow,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Escrow Status
+|--------------------------------------------------------------------------
+*/
+
+app.get("/api/escrow/:id/status", (req, res) => {
+
+  const allEscrows = loadEscrows();
+
+  const escrow = allEscrows.find(
+    (e) => e.escrowId === req.params.id
+  );
+
+  if (!escrow) {
+
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+
+  }
+
+  res.json({
+    success: true,
+    status: escrow.status,
+    escrow,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Seller Accept
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow/:id/accept", (req, res) => {
+
+  const { sellerWallet } = req.body;
+
+  const allEscrows = loadEscrows();
+
+  const escrow = allEscrows.find(
+    (e) => e.escrowId === req.params.id
+  );
+
+  if (!escrow) {
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+  }
+
+  if (!sellerWallet) {
+    return res.status(400).json({
+      success: false,
+      message: "Seller wallet is required",
+    });
+  }
+
+  if (escrow.status !== "Waiting Seller") {
+    return res.status(400).json({
+      success: false,
+      message: escrow.status === "Cancelled"
+        ? "This escrow request expired after 12 hours."
+        : "This escrow request is no longer waiting for seller acceptance.",
+    });
+  }
+
+  escrow.status = "Seller Accepted";
+  escrow.sellerWallet = sellerWallet;
+  escrow.verificationCode = Math.floor(
+    100000 + Math.random() * 900000
+  ).toString();
+
+  // Keep the in-memory copy in sync with the saved record. The seller
+  // verification page reads this copy immediately after acceptance.
+  escrows[req.params.id] = escrow;
+
+  saveEscrows(allEscrows);
+
+  res.json({
+    success: true,
+    escrow,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Buyer Deposit
+|--------------------------------------------------------------------------
+*/
+
+
+app.post("/api/escrow/:id/deposit", (req, res) => {
+
+  const { transactionHash } = req.body || {};
+
+  const allEscrows = loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+
+  if (!escrow) {
+
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+
+  }
+
+  if (escrow.status === "Cancelled") {
+    return res.status(400).json({
+      success: false,
+      message: "This escrow request expired after 12 hours. Create a new escrow to continue.",
+    });
+  }
+
+  if (escrow.status !== "Seller Accepted") {
+    return res.status(400).json({
+      success: false,
+      message: "The seller must accept the deal before you can deposit USDC.",
+    });
+  }
+
+  escrow.status = "Funds Locked";
+  escrow.isPermanent = true;
+  escrow.depositedAt = Date.now();
+
+  if (/^0x[a-fA-F0-9]{64}$/.test(transactionHash || "")) {
+    escrow.depositTransactionHash = transactionHash;
+  }
+
+  const index = allEscrows.findIndex(
+    (e) => e.escrowId === escrow.escrowId
+  );
+
+  if (index !== -1) {
+
+    allEscrows[index] = escrow;
+
+    saveEscrows(allEscrows);
+
+  }
+
+  escrows[req.params.id] = escrow;
+
+  res.json({
+    success: true,
+    escrow,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Seller Delivery Complete
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow/:id/delivered", (req, res) => {
+  console.log("DELIVERY ENDPOINT HIT");
+
+  const escrow = escrows[req.params.id];
+
+  if (!escrow) {
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+  }
+
+  escrow.status = "Delivered";
+
+  const allEscrows = loadEscrows();
+
+  const index = allEscrows.findIndex(
+    (e) => e.escrowId === escrow.escrowId
+  );
+
+  if (index !== -1) {
+
+    allEscrows[index] = escrow;
+
+    saveEscrows(allEscrows);
+
+  }
+  console.log(escrow);
+
+  res.json({
+    success: true,
+    escrow,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Buyer Release Funds
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow/:id/release", (req, res) => {
+
+  const { transactionHash } = req.body || {};
+
+  console.log("RELEASE ENDPOINT HIT");
+
+  const escrow = escrows[req.params.id];
+
+  if (!escrow) {
+
+    return res.status(404).json({
+
+      success: false,
+      message: "Escrow Not Found",
+
+    });
+
+  }
+
+
+  if (escrow.status !== "Delivered") {
+
+    return res.status(400).json({
+      success: false,
+      message: "Seller has not marked the order as Delivered.",
+    });
+
+  }
+
+  escrow.status = "Released";
+  escrow.releasedAt = Date.now();
+
+  if (/^0x[a-fA-F0-9]{64}$/.test(transactionHash || "")) {
+    escrow.releaseTransactionHash = transactionHash;
+  }
+
+  const allEscrows = loadEscrows();
+
+  const index = allEscrows.findIndex(
+    (e) => e.escrowId === escrow.escrowId
+  );
+
+  if (index !== -1) {
+
+    allEscrows[index] = escrow;
+
+    saveEscrows(allEscrows);
+
+  }
+
+  console.log(escrow);
+
+  res.json({
+
+    success: true,
+    escrow,
+
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cancel Pending Escrow
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow/:id/cancel", (req, res) => {
+  const { buyerWallet } = req.body;
+  const allEscrows = loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+
+  if (!escrow) {
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+  }
+
+  if (
+    escrow.status !== "Waiting Seller" &&
+    escrow.status !== "Seller Accepted"
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Only an escrow that has not been funded can be cancelled.",
+    });
+  }
+
+  if (
+    buyerWallet &&
+    escrow.buyerWallet &&
+    buyerWallet.toLowerCase() !== escrow.buyerWallet.toLowerCase()
+  ) {
+    return res.status(403).json({
+      success: false,
+      message: "Only the buyer wallet can cancel this escrow.",
+    });
+  }
+
+  escrow.status = "Cancelled";
+  escrow.cancellationReason = "Cancelled by Buyer";
+  escrow.cancelledAt = Date.now();
+  escrows[req.params.id] = escrow;
+  saveEscrows(allEscrows);
+
+  return res.json({ success: true, escrow });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Seller Reject Escrow
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow/:id/reject", (req, res) => {
+  const { sellerWallet } = req.body;
+  const allEscrows = loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+
+  if (!escrow) {
+    return res.status(404).json({ success: false, message: "Escrow Not Found" });
+  }
+
+  if (escrow.status !== "Waiting Seller" && escrow.status !== "Seller Accepted") {
+    return res.status(400).json({
+      success: false,
+      message: "This escrow can no longer be rejected.",
+    });
+  }
+
+  escrow.status = "Cancelled";
+  escrow.cancellationReason = "Rejected by Seller";
+  escrow.sellerWallet = sellerWallet || escrow.sellerWallet || "";
+  escrow.cancelledAt = Date.now();
+  escrows[req.params.id] = escrow;
+  saveEscrows(allEscrows);
+
+  return res.json({ success: true, escrow });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Get Active Escrows
+|--------------------------------------------------------------------------
+*/
+
+app.get("/api/escrows", (req, res) => {
+
+  const allEscrows = loadEscrows();
+
+  const { category, buyerWallet, wallet, role } = req.query;
+  const categories = {
+    pending: ["Waiting Seller", "Seller Accepted"],
+    active: ["Funds Locked", "Delivered"],
+    completed: ["Released"],
+    cancelled: ["Cancelled"],
+  };
+
+  const allowedStatuses = categories[category] || categories.active;
+  const connectedWallet = (wallet || buyerWallet || "").toLowerCase();
+  const recordRole = role === "seller" ? "seller" : "buyer";
+
+  const activeEscrows = allEscrows.filter((escrow) => {
+    const belongsToConnectedWallet = !connectedWallet || (
+      recordRole === "seller"
+        ? escrow.sellerWallet?.toLowerCase() === connectedWallet
+        : escrow.buyerWallet?.toLowerCase() === connectedWallet
+    );
+
+    return belongsToConnectedWallet && allowedStatuses.includes(escrow.status);
+  });
+
+  res.json({
+    success: true,
+    escrows: activeEscrows,
+  });
+
+});
+
+/*
+|--------------------------------------------------------------------------
+| ProofPay Live Escrow Overview
+|--------------------------------------------------------------------------
+*/
+
+app.get("/api/escrow-stats", (req, res) => {
+  const allEscrows = loadEscrows();
+  const liveEscrows = allEscrows.filter(
+    (escrow) => escrow.status === "Funds Locked" || escrow.status === "Delivered"
+  );
+
+  const lockedUsdc = liveEscrows.reduce(
+    (total, escrow) => total + (Number(escrow.amount) || 0),
+    0
+  );
+  const activeBuyers = new Set(
+    liveEscrows.map((escrow) => escrow.buyerWallet?.toLowerCase()).filter(Boolean)
+  ).size;
+  const activeSellers = new Set(
+    liveEscrows.map((escrow) => escrow.sellerWallet?.toLowerCase()).filter(Boolean)
+  ).size;
+
+  return res.json({
+    success: true,
+    lockedUsdc,
+    liveEscrows: liveEscrows.length,
+    activeBuyers,
+    activeSellers,
+  });
+});
+
+app.post("/api/circle/verify-email-otp", async (req, res) => {
+
+  const { email, otp, otpResponse } = req.body;
+  console.log("Email:", email);
+  console.log("OTP:", otp);
+  console.log("OTP Response:", otpResponse);
+
+  if (!email || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: "Email and OTP are required",
+    });
+  }
+  console.log("OTP validation passed");
+  console.log("Next Step: Create or Load Wallet");
+
+  const deviceToken = otpResponse.data.deviceToken;
+
+  console.log("Device Token:", deviceToken);
+
+  const encryptionKey = otpResponse.data.deviceEncryptionKey;
+  console.log("Encryption Key:", encryptionKey);
+  const otpToken = otpResponse.data.otpToken;
+
+  console.log("OTP Token:", otpToken);
+
+  return res.json({
+    success: true,
+    message: "OTP verified successfully",
+  });
+
+  console.log(req.body);
+
+  return res.json({
+    success: true,
+    message: "OTP route reached successfully",
+  });
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Start Server
+|--------------------------------------------------------------------------
+*/
+
+const PORT = 5001;
+
+app.listen(PORT, () => {
+
+  console.log(
+    `✅ ProofPay Backend Running on http://localhost:${PORT}`
+  );
+
+});

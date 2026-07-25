@@ -1,5 +1,7 @@
+import OtpVerification from "../pages/OtpVerification";
+import Login from "../pages/Login";
+import ActiveOrders from "../pages/ActiveOrders";
 import { Routes, Route } from "react-router-dom";
-
 import Landing from "../pages/landing/Landing";
 import Home from "../pages/Home";
 
@@ -9,6 +11,7 @@ import WaitingSeller from "../pages/WaitingSeller";
 
 import SellerLanding from "../pages/SellerLanding";
 import SellerAccept from "../pages/SellerAccept";
+import SellerVerification from "../pages/SellerVerification";
 
 import BuyerDeposit from "../pages/BuyerDeposit";
 import EscrowActive from "../pages/EscrowActive";
@@ -17,6 +20,9 @@ import Refund from "../pages/Refund";
 import Dispute from "../pages/Dispute";
 import OrderHistory from "../pages/OrderHistory";
 import Profile from "../pages/Profile";
+import PendingOrders from "../pages/PendingOrders";
+import CompletedOrders from "../pages/CompletedOrders";
+import CancelledOrders from "../pages/CancelledOrders";
 
 export default function AppRoutes() {
   return (
@@ -24,9 +30,13 @@ export default function AppRoutes() {
 
       {/* Landing */}
       <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/otp" element={<OtpVerification />} />
 
       {/* Buyer */}
       <Route path="/dashboard" element={<Home />} />
+      <Route path="/dashboard/buying" element={<Home />} />
+      <Route path="/dashboard/selling" element={<Home />} />
       <Route path="/create" element={<CreateEscrow />} />
       <Route path="/generate-link" element={<GenerateLink />} />
       <Route path="/waiting" element={<WaitingSeller />} />
@@ -38,7 +48,15 @@ export default function AppRoutes() {
 
       {/* Seller */}
       <Route path="/seller-landing" element={<SellerLanding />} />
-      <Route path="/seller" element={<SellerAccept />} />
+      <Route path="/escrow/:id" element={<SellerAccept />} />
+      <Route
+        path="/seller-verification/:id"
+        element={<SellerVerification />} />
+
+      <Route path="/active-orders" element={<ActiveOrders />} />
+      <Route path="/pending-orders" element={<PendingOrders />} />
+      <Route path="/completed-orders" element={<CompletedOrders />} />
+      <Route path="/cancelled-orders" element={<CancelledOrders />} />
 
       {/* Others */}
       <Route path="/history" element={<OrderHistory />} />
