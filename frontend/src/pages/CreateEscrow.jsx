@@ -58,40 +58,40 @@ export default function CreateEscrow() {
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar />
-      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
-        <button onClick={() => navigate("/dashboard/buying")} className="mb-8 font-semibold text-blue-600">
+      <main className="mx-auto max-w-2xl px-5 py-7 sm:px-6">
+        <button onClick={() => navigate("/dashboard/buying")} className="mb-5 text-sm font-semibold text-blue-600">
           ← Back to Buying Escrows
         </button>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h1 className="text-3xl font-bold text-slate-900">Create New Escrow</h1>
-          <p className="mt-3 text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h1 className="text-2xl font-bold text-slate-900">Create New Escrow</h1>
+          <p className="mt-2 text-sm text-slate-600">
             Create the deal and send its secure link to the seller. Their wallet will bind automatically when they accept.
           </p>
 
-          <div className="mt-7 rounded-xl border p-5 sm:p-6">
-            <h2 className="mb-6 text-2xl font-bold">Buyer Information</h2>
-            <div className="space-y-5">
+          <div className="mt-5 rounded-xl border p-4 sm:p-5">
+            <h2 className="mb-4 text-lg font-bold">Buyer Information</h2>
+            <div className="space-y-3">
               <InputField placeholder="Buyer Name" value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
               <InputField placeholder="Product / Service Name" value={productName} onChange={(event) => setProductName(event.target.value)} />
               <InputField placeholder="Product ID (Optional)" value={productId} onChange={(event) => setProductId(event.target.value)} />
               <InputField placeholder="Amount (USDC) — e.g. 25" value={amount} onChange={(event) => setAmount(event.target.value)} />
-              <textarea rows={5} placeholder="Deal Description (Optional)" value={description} onChange={(event) => setDescription(event.target.value)} className="w-full rounded-xl border border-slate-300 p-4 outline-none focus:border-blue-500" />
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <textarea rows={3} placeholder="Deal Description (Optional)" value={description} onChange={(event) => setDescription(event.target.value)} className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 <strong>12-hour secure link</strong>
                 <p className="mt-1 text-amber-800">This escrow request expires automatically in 12 hours if funds are not locked.</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border p-5 sm:p-6">
-            <h2 className="mb-6 text-2xl font-bold">Seller Information</h2>
+          <div className="mt-4 rounded-xl border p-4 sm:p-5">
+            <h2 className="mb-4 text-lg font-bold">Seller Information</h2>
             <InputField placeholder="Business / Seller Name" value={sellerName} onChange={(event) => setSellerName(event.target.value)} />
           </div>
 
           {error && <p className="mt-6 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
 
-          <div className="mt-10">
+          <div className="mt-6">
             <PrimaryButton onClick={handleCreateEscrow} disabled={submitting}>
               {submitting ? "Creating Escrow..." : "Generate Secure Escrow Link"}
             </PrimaryButton>

@@ -144,26 +144,26 @@ export default function WaitingSeller() {
 
       <Navbar />
 
-      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
+      <main className="mx-auto max-w-2xl px-5 py-7 sm:px-6">
 
         <button
           onClick={() => navigate("/dashboard/buying")}
-          className="mb-8 font-semibold text-blue-600 hover:text-blue-700"
+          className="mb-5 text-sm font-semibold text-blue-600 hover:text-blue-700"
         >
           ← Back to Buying Escrows
         </button>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 
           <div className="flex items-center justify-between">
 
             <div>
 
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-2xl font-bold text-slate-900">
                 {sellerRejected ? "Deal Rejected" : "Waiting for Seller"}
               </h1>
 
-              <p className="mt-3 text-slate-600">
+              <p className="mt-2 text-sm text-slate-600">
                 {sellerRejected
                   ? "The seller has rejected this escrow request."
                   : "Your escrow request has been created successfully."}
@@ -181,13 +181,13 @@ export default function WaitingSeller() {
 
           </div>          {/* Secure Link */}
 
-          <div className="mt-7 rounded-xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
+          <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
 
-            <h2 className="text-2xl font-bold text-blue-700">
+            <h2 className="text-lg font-bold text-blue-700">
               Secure Link
             </h2>
 
-            <div className="mt-8 space-y-6">
+            <div className="mt-4 space-y-4">
 
               <div>
 
@@ -195,7 +195,7 @@ export default function WaitingSeller() {
                   Escrow ID
                 </p>
 
-                <h3 className="mt-2 text-3xl font-bold">
+                <h3 className="mt-1 text-xl font-bold">
                   {escrowData.escrowId}
                 </h3>
 
@@ -225,11 +225,11 @@ export default function WaitingSeller() {
 
           {/* Actions */}
 
-          <div className="mt-8 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-2 gap-3">
 
             <button
               onClick={copyLink}
-              className="rounded-xl border py-4 font-semibold hover:bg-slate-100 transition"
+              className="rounded-xl border py-3 font-semibold transition hover:bg-slate-100"
             >
 
               {copied ? "✅ Link Copied" : "📋 Copy Link"}
@@ -238,7 +238,7 @@ export default function WaitingSeller() {
 
             <button
               onClick={shareLink}
-              className="rounded-xl border py-4 font-semibold hover:bg-slate-100 transition"
+              className="rounded-xl border py-3 font-semibold transition hover:bg-slate-100"
             >
 
               📤 Share Link
@@ -249,9 +249,9 @@ export default function WaitingSeller() {
 
           {/* Escrow Summary */}
 
-          <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
+          <div className="mt-5 rounded-xl border border-slate-200 p-4 sm:p-5">
 
-            <h2 className="mb-6 text-2xl font-bold">
+            <h2 className="mb-4 text-lg font-bold">
               Escrow Summary
             </h2>
 
@@ -288,29 +288,29 @@ export default function WaitingSeller() {
 
           {/* Live Status */}
 
-<div className={`mt-6 rounded-2xl border p-6 text-center shadow-sm ${
+<div className={`mt-5 rounded-xl border p-4 text-center shadow-sm ${
   sellerRejected
     ? "border-red-200 bg-gradient-to-br from-red-50 to-white"
     : "border-blue-200 bg-gradient-to-br from-blue-50 to-white"
 }`}>
 
-  <div className="text-5xl">
+  <div className="text-3xl">
     {sellerRejected ? "✖️" : "⏳"}
   </div>
 
-  <h2 className={`mt-4 text-3xl font-bold ${
+  <h2 className={`mt-2 text-xl font-bold ${
     sellerRejected ? "text-red-700" : "text-blue-700"
   }`}>
     {sellerRejected ? "Deal Rejected by Seller" : "Waiting for Seller"}
   </h2>
 
-  <p className="mt-5 text-xl text-slate-700">
+  <p className="mt-3 text-sm font-medium text-slate-700">
     {sellerRejected
       ? "This escrow has been cancelled. No funds were deposited."
       : "Your secure ProofPay escrow has been created successfully."}
   </p>
 
-  <p className="mt-3 text-lg leading-8 text-slate-600">
+  <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">
     {sellerRejected ? (
       "You can find this deal in Cancelled Purchases."
     ) : (
@@ -327,7 +327,7 @@ export default function WaitingSeller() {
 
 {/* Auto Status */}
 
-{!sellerRejected && <div className="mt-8 rounded-xl border border-green-200 bg-green-50 p-5 text-center">
+{!sellerRejected && <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-center text-sm">
 
   <p className="font-semibold text-green-700">
     ✅ ProofPay automatically checks the seller status every 2 seconds.
@@ -337,7 +337,7 @@ export default function WaitingSeller() {
 
 {/* Continue */}
 
-<div className="mt-10">
+<div className="mt-6">
 
   <PrimaryButton
     onClick={() => sellerRejected
