@@ -12,7 +12,8 @@
     "@circle-fin/user-controlled-wallets": "^10.8.0",
     "axios": "^1.18.1",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^7.0.0",
