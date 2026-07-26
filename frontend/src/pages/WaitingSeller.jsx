@@ -20,7 +20,7 @@ export default function WaitingSeller() {
     escrowData.cancellationReason === "Rejected by Seller";
 
   const secureLink =
-    `${window.location.origin}/escrow/${escrowData.escrowId}`;
+    `${window.location.origin}/#/escrow/${escrowData.escrowId}`;
 
   /*
   |--------------------------------------------------------------------------
