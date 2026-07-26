@@ -1,12 +1,19 @@
-export default function Refund({ setScreen }) {
-  return (
-    <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl p-10 text-center">
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
-      <div className="text-6xl mb-6">
+export default function Refund() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <Navbar />
+      <main className="mx-auto max-w-lg px-5 py-8 sm:px-6">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
+
+      <div className="mb-4 text-4xl">
         ↩️
       </div>
 
-      <h1 className="text-4xl font-bold">
+      <h1 className="text-3xl font-bold">
         Refund Requested
       </h1>
 
@@ -15,12 +22,14 @@ export default function Refund({ setScreen }) {
       </p>
 
       <button
-        onClick={() => setScreen("home")}
-        className="mt-10 bg-blue-600 text-white px-8 py-4 rounded-xl"
+        onClick={() => navigate("/dashboard/buying")}
+        className="mt-7 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white"
       >
         Home
       </button>
 
+      </div>
+      </main>
     </div>
   )
 }

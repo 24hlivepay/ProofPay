@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
 export default function ReleaseFunds() {
 
@@ -6,15 +7,16 @@ export default function ReleaseFunds() {
 
   return (
 
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-6">
+    <div className="min-h-screen bg-slate-100">
+      <Navbar />
+      <main className="mx-auto max-w-lg px-5 py-8 sm:px-6">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
 
-      <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl p-10 text-center">
-
-        <div className="text-6xl mb-6">
+        <div className="mb-4 text-4xl">
           ✅
         </div>
 
-        <h1 className="text-4xl font-bold">
+        <h1 className="text-3xl font-bold">
           Funds Released Successfully
         </h1>
 
@@ -28,13 +30,13 @@ export default function ReleaseFunds() {
 
         <button
           onClick={() => navigate("/dashboard/buying")}
-          className="mt-10 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl"
+          className="mt-7 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
         >
           ← Back to Buying Escrows
         </button>
 
       </div>
-
+      </main>
     </div>
 
   );

@@ -1,15 +1,22 @@
-export default function OrderHistory({ setScreen }) {
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+
+export default function OrderHistory() {
+  const navigate = useNavigate();
   return (
-    <div className="max-w-4xl w-full bg-white rounded-3xl shadow-xl p-10">
+    <div className="min-h-screen bg-slate-100">
+      <Navbar />
+      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
 
       <div className="flex justify-between items-center">
 
-        <h1 className="text-4xl font-bold">
+        <h1 className="text-3xl font-bold">
           Order History
         </h1>
 
         <button
-          onClick={() => setScreen("home")}
+          onClick={() => navigate("/dashboard")}
           className="text-blue-600 font-semibold"
         >
           Home
@@ -17,7 +24,7 @@ export default function OrderHistory({ setScreen }) {
 
       </div>
 
-      <div className="mt-10 space-y-4">
+      <div className="mt-7 space-y-3">
 
         <div className="border rounded-xl p-5 flex justify-between">
 
@@ -61,6 +68,8 @@ export default function OrderHistory({ setScreen }) {
 
       </div>
 
+      </div>
+      </main>
     </div>
   )
 }
