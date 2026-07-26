@@ -32,7 +32,6 @@ export default function Home() {
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
   const [buyerCounts, setBuyerCounts] = useState(EMPTY_COUNTS);
   const [sellerCounts, setSellerCounts] = useState(EMPTY_COUNTS);
-  const [latestDeposit, setLatestDeposit] = useState(null);
   const [networkStats, setNetworkStats] = useState(null);
   const [networkStatsError, setNetworkStatsError] = useState("");
   const [networkName, setNetworkName] = useState("Checking network...");
@@ -63,7 +62,6 @@ export default function Home() {
         if (mounted) {
           setBuyerCounts(EMPTY_COUNTS);
           setSellerCounts(EMPTY_COUNTS);
-          setLatestDeposit(null);
         }
         return;
       }
@@ -79,7 +77,6 @@ export default function Home() {
             counts: Object.fromEntries(
               categories.map((category, index) => [category, responses[index].data.escrows.length])
             ),
-            activeEscrows: responses[1].data.escrows || [],
           };
         };
 
@@ -92,10 +89,6 @@ export default function Home() {
           setBuyerCounts(nextBuyer.counts);
           setSellerCounts(nextSeller.counts);
 
-          const latest = [...nextBuyer.activeEscrows]
-            .filter((escrow) => escrow.depositTransactionHash)
-            .sort((first, second) => (second.depositedAt || 0) - (first.depositedAt || 0))[0];
-          setLatestDeposit(latest || null);
         }
       } catch {
         // The dashboard remains usable even if the local backend is restarting.
@@ -261,7 +254,7 @@ export default function Home() {
         {mode === "buyer" && (
           <>
             <BackToWorkspaces onClick={() => navigate("/dashboard")} />
-            <DashboardSection title="Buying" description="Escrows where you are paying the seller." latestDeposit={latestDeposit}>
+            <DashboardSection>
           <RoleCard icon="➕" title="Create Escrow" description="Start a secure purchase." tone="blue" onClick={() => navigate("/create")} />
           <RoleCard icon="🟠" title="Pending Orders" description="Waiting for seller acceptance or your deposit." count={buyerCounts.pending} tone="orange" onClick={() => openOrders("/pending-orders", "buyer")} />
           <RoleCard icon="🟡" title="Active Purchases" description="Funds locked or delivery in progress." count={buyerCounts.active} tone="yellow" onClick={() => openOrders("/active-orders", "buyer")} />
@@ -374,26 +367,11 @@ function WorkspaceCard({ icon, title, description, onClick }) {
   );
 }
 
-function DashboardSection({ title, description, latestDeposit, children }) {
+function DashboardSection({ children }) {
   return (
     <section className="mt-8">
-      {latestDeposit && <div className="mb-5 flex justify-end"><DepositSuccessCard deposit={latestDeposit} /></div>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{children}</div>
     </section>
-  );
-}
-
-function DepositSuccessCard({ deposit }) {
-  const explorerUrl = `https://testnet.arcscan.app/tx/${deposit.depositTransactionHash}`;
-
-  return (
-    <aside className="w-full max-w-sm rounded-2xl border border-green-200 bg-green-50 p-5 shadow-sm sm:w-auto">
-      <p className="font-bold text-green-800">✓ Deposit successful</p>
-      <p className="mt-1 text-sm text-green-700">{deposit.amount} USDC is locked in escrow {deposit.escrowId}.</p>
-      <a href={explorerUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-sm font-bold text-blue-700 hover:text-blue-800">
-        View transaction on Arcscan ↗
-      </a>
-    </aside>
   );
 }
 
