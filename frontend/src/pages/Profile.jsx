@@ -1,10 +1,17 @@
-export default function Profile({ setScreen }) {
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+
+export default function Profile() {
+  const navigate = useNavigate();
   return (
-    <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl p-10 text-center">
+    <div className="min-h-screen bg-slate-100">
+      <Navbar />
+      <main className="mx-auto max-w-lg px-5 py-8 sm:px-6">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
 
-      <div className="w-24 h-24 rounded-full bg-blue-600 mx-auto"></div>
+      <div className="mx-auto h-16 w-16 rounded-full bg-blue-600"></div>
 
-      <h1 className="mt-6 text-4xl font-bold">
+      <h1 className="mt-4 text-3xl font-bold">
         Wallet Profile
       </h1>
 
@@ -20,9 +27,9 @@ export default function Profile({ setScreen }) {
 
       <div className="grid grid-cols-2 gap-4 mt-8">
 
-        <div className="border rounded-xl p-6">
+        <div className="rounded-xl border p-4">
 
-          <h2 className="text-3xl font-bold">
+          <h2 className="text-2xl font-bold">
             12
           </h2>
 
@@ -32,9 +39,9 @@ export default function Profile({ setScreen }) {
 
         </div>
 
-        <div className="border rounded-xl p-6">
+        <div className="rounded-xl border p-4">
 
-          <h2 className="text-3xl font-bold">
+          <h2 className="text-2xl font-bold">
             100%
           </h2>
 
@@ -47,12 +54,14 @@ export default function Profile({ setScreen }) {
       </div>
 
       <button
-        onClick={() => setScreen("home")}
-        className="mt-8 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl"
+        onClick={() => navigate("/dashboard")}
+        className="mt-7 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
       >
         Back Home
       </button>
 
+      </div>
+      </main>
     </div>
   )
 }

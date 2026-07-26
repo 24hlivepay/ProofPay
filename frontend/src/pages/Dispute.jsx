@@ -1,8 +1,13 @@
-export default function Dispute({ setScreen }) {
-  return (
-    <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl p-10">
+import Navbar from "../components/Navbar";
 
-      <h1 className="text-4xl font-bold">
+export default function Dispute() {
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <Navbar />
+      <main className="mx-auto max-w-lg px-5 py-8 sm:px-6">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+
+      <h1 className="text-3xl font-bold">
         Open Dispute
       </h1>
 
@@ -13,11 +18,13 @@ export default function Dispute({ setScreen }) {
       />
 
       <button
-        className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl"
+        className="mt-6 w-full rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700"
       >
         Submit Dispute
       </button>
 
+      </div>
+      </main>
     </div>
   )
 }
