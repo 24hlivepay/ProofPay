@@ -12,6 +12,16 @@ import api from "../services/api";
 
 const EMPTY_COUNTS = { pending: 0, active: 0, completed: 0, cancelled: 0 };
 const EMPTY_STATS = { lockedUsdc: 0, liveEscrows: 0, activeBuyers: 0, activeSellers: 0 };
+const CONTRACT_STATS_TIMEOUT_MS = 3500;
+
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error("Contract statistics timed out")), timeoutMs);
+    }),
+  ]);
+}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -101,7 +111,10 @@ export default function Home() {
 
     async function loadNetworkStats() {
       try {
-        const contractStats = await getLiveContractStats();
+        const contractStats = await withTimeout(
+          getLiveContractStats(),
+          CONTRACT_STATS_TIMEOUT_MS
+        );
         const needsDatabaseFallback = [
           contractStats.liveEscrows,
           contractStats.activeBuyers,
@@ -216,7 +229,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-100">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
+      <main className="mx-auto max-w-5xl px-5 py-7 sm:px-6">
         <div className="mb-7">
           <h1 className="text-3xl font-bold text-slate-900">{mode === "buyer" ? "Buying Escrows" : mode === "seller" ? "Selling Escrows" : "Choose Your Workspace"}</h1>
           <p className="mt-2 text-slate-600">{mode ? "Manage your escrow records in this workspace." : "Choose whether you want to buy or sell with this wallet."}</p>
@@ -239,7 +252,7 @@ export default function Home() {
         )}
 
         {!mode && (
-          <section className="mx-auto mt-8 grid max-w-3xl gap-5 md:grid-cols-2">
+          <section className="mx-auto mt-7 grid max-w-2xl gap-4 md:grid-cols-2">
             <WorkspaceCard icon="🛒" title="Buying Escrows" description="Create a secure escrow, deposit USDC, and release payment after delivery." onClick={() => navigate("/dashboard/buying")} />
             <WorkspaceCard icon="🏪" title="Selling Escrows" description="See accepted sales, confirm delivery, and track payments received." onClick={() => navigate("/dashboard/selling")} />
           </section>
@@ -291,12 +304,12 @@ function LiveEscrowOverview({
   });
 
   return (
-    <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-6 text-white shadow-lg">
+    <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-5 text-white shadow-lg sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-200">Live ProofPay Network</p>
-          <h2 className="mt-2 text-2xl font-bold">Protected by smart-contract escrow</h2>
-          <p className="mt-2 max-w-2xl text-blue-100">Live values read directly from the deployed Arc Testnet escrow contract.</p>
+          <h2 className="mt-2 text-xl font-bold sm:text-2xl">Protected by smart-contract escrow</h2>
+          <p className="mt-2 max-w-2xl text-sm text-blue-100 sm:text-base">Live values read directly from the deployed Arc Testnet escrow contract.</p>
         </div>
         <div className="relative flex flex-col items-end gap-3">
           <button onClick={onWalletClick} className="h-12 w-56 rounded-xl bg-white px-4 text-center text-[17px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
@@ -313,7 +326,7 @@ function LiveEscrowOverview({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="USDC Locked" value={hasStats ? `${lockedAmount} USDC` : "Loading…"} primary />
         <StatCard label="Live Escrows" value={hasStats ? stats.liveEscrows ?? "Checking…" : "Loading…"} />
         <StatCard label="Active Buyers" value={hasStats ? stats.activeBuyers ?? "Checking…" : "Loading…"} />
@@ -352,11 +365,11 @@ function BackToWorkspaces({ onClick }) {
 
 function WorkspaceCard({ icon, title, description, onClick }) {
   return (
-    <button onClick={onClick} className="rounded-2xl border border-blue-200 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:border-blue-400 hover:shadow-lg">
-      <div className="text-4xl">{icon}</div>
-      <h2 className="mt-4 text-2xl font-bold text-slate-900">{title}</h2>
+    <button onClick={onClick} className="rounded-2xl border border-blue-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-1 hover:border-blue-400 hover:shadow-lg">
+      <div className="text-3xl">{icon}</div>
+      <h2 className="mt-3 text-xl font-bold text-slate-900">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-      <span className="mt-5 inline-block rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">Open {title}</span>
+      <span className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open {title}</span>
     </button>
   );
 }
