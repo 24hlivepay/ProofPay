@@ -83,18 +83,18 @@ export default function BuyerDeposit() {
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar />
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
         <button onClick={() => navigate(backTo)} className="mb-8 font-semibold text-blue-600 hover:text-blue-700">
           {backLabel}
         </button>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-          <h1 className="text-4xl font-bold text-slate-900">Verify & Deposit</h1>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <h1 className="text-3xl font-bold text-slate-900">Verify & Deposit</h1>
           <p className="mt-3 text-slate-600">
             Confirm the seller’s code, then approve and lock USDC through MetaMask.
           </p>
 
-          <div className="mt-10 rounded-2xl border border-slate-200 p-8">
+          <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
             <h2 className="mb-6 text-2xl font-bold">Escrow Summary</h2>
             <div className="space-y-4">
               <SummaryRow label="Buyer" value={escrowData.buyerName} />
@@ -107,7 +107,7 @@ export default function BuyerDeposit() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-8">
+          <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
             <h2 className="text-2xl font-bold text-blue-700">Seller Verification</h2>
             <p className="mt-3 text-slate-700">Enter the code supplied by the seller.</p>
             <div className="mt-6">

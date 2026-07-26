@@ -72,24 +72,24 @@ export default function SellerVerification() {
   ) : error ? (
     <StatusCard title="Verification unavailable" message={error} error />
   ) : escrowData.status === "Seller Accepted" ? (
-    <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="text-center">
-        <div className="text-6xl">🤝</div>
-        <h1 className="mt-6 text-4xl font-bold text-green-700">Deal Accepted</h1>
+        <div className="text-4xl">🤝</div>
+        <h1 className="mt-4 text-3xl font-bold text-green-700">Deal Accepted</h1>
         <p className="mt-4 text-slate-600">Share this code with the buyer so they can fund the live USDC escrow.</p>
       </div>
-      <div className="mt-10 rounded-2xl border border-blue-200 bg-blue-50 p-8 text-center">
+      <div className="mt-7 rounded-xl border border-blue-200 bg-blue-50 p-5 text-center sm:p-6">
         <p className="text-sm text-slate-500">Verification Code</p>
         <div className="mt-4 flex items-center justify-center gap-4">
-          <strong className="text-5xl tracking-widest text-blue-700">{escrowData.verificationCode}</strong>
+          <strong className="text-4xl tracking-widest text-blue-700">{escrowData.verificationCode}</strong>
           <button onClick={copyVerificationCode} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700">{copied ? "Copied" : "Copy"}</button>
         </div>
       </div>
     </div>
   ) : escrowData.status === "Funds Locked" ? (
-    <div className="rounded-3xl border border-green-200 bg-white p-10 text-center shadow-xl">
-      <div className="text-7xl">🔒</div>
-      <h1 className="mt-6 text-5xl font-bold text-green-700">USDC Locked</h1>
+    <div className="rounded-2xl border border-green-200 bg-white p-6 text-center shadow-lg sm:p-8">
+      <div className="text-5xl">🔒</div>
+      <h1 className="mt-4 text-3xl font-bold text-green-700">USDC Locked</h1>
       <p className="mt-5 text-lg text-slate-600">The buyer’s USDC is locked in the ARC Testnet escrow contract.</p>
       {escrowData.depositTransactionHash && <TransactionProof hash={escrowData.depositTransactionHash} />}
       <div className="mt-10"><PrimaryButton onClick={completeDelivery} disabled={submitting}>{submitting ? "Confirming Delivery..." : "Delivery Completed"}</PrimaryButton></div>
@@ -107,7 +107,7 @@ export default function SellerVerification() {
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar />
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
         <button onClick={() => navigate(sellerBack.path, { state: sellerBack.state })} className="mb-8 font-semibold text-blue-600 hover:text-blue-700">
           ← {sellerBack.label}
         </button>
@@ -139,8 +139,8 @@ function getSellerBackDestination(status) {
 
 function StatusCard({ title, message, error = false }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-      <h1 className={`text-4xl font-bold ${error ? "text-red-700" : "text-blue-700"}`}>{title}</h1>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
+      <h1 className={`text-3xl font-bold ${error ? "text-red-700" : "text-blue-700"}`}>{title}</h1>
       <p className="mt-4 text-slate-600">{message}</p>
     </div>
   );

@@ -102,13 +102,37 @@ export default function Home() {
     async function loadNetworkStats() {
       try {
         const contractStats = await getLiveContractStats();
+        const needsDatabaseFallback = [
+          contractStats.liveEscrows,
+          contractStats.activeBuyers,
+          contractStats.activeSellers,
+        ].some((value) => value === null || value === undefined);
+        const databaseStats = needsDatabaseFallback
+          ? (await api.get("/escrow-stats")).data
+          : {};
+
         if (mounted) {
-          setNetworkStats({ ...EMPTY_STATS, ...contractStats });
+          setNetworkStats({
+            ...EMPTY_STATS,
+            ...databaseStats,
+            ...Object.fromEntries(
+              Object.entries(contractStats).filter(([, value]) => value !== null && value !== undefined)
+            ),
+          });
           setNetworkStatsError("");
         }
       } catch {
-        if (mounted) {
-          setNetworkStatsError("Live contract data is temporarily unavailable. Retrying automatically…");
+        try {
+          const response = await api.get("/escrow-stats");
+          if (mounted) {
+            setNetworkStats({ ...EMPTY_STATS, ...response.data });
+            setNetworkStatsError("Contract history is temporarily unavailable; showing saved ProofPay records.");
+          }
+        } catch {
+          if (mounted) {
+            setNetworkStats(EMPTY_STATS);
+            setNetworkStatsError("Live statistics are temporarily unavailable.");
+          }
         }
       }
     }
@@ -192,9 +216,9 @@ export default function Home() {
     <div className="min-h-screen bg-slate-100">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-6 py-12">
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-slate-900">{mode === "buyer" ? "Buying Escrows" : mode === "seller" ? "Selling Escrows" : "Choose Your Workspace"}</h1>
+      <main className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
+        <div className="mb-7">
+          <h1 className="text-3xl font-bold text-slate-900">{mode === "buyer" ? "Buying Escrows" : mode === "seller" ? "Selling Escrows" : "Choose Your Workspace"}</h1>
           <p className="mt-2 text-slate-600">{mode ? "Manage your escrow records in this workspace." : "Choose whether you want to buy or sell with this wallet."}</p>
 
           {walletError && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{walletError}</p>}
@@ -215,7 +239,7 @@ export default function Home() {
         )}
 
         {!mode && (
-          <section className="mx-auto mt-14 grid max-w-4xl gap-8 md:grid-cols-2">
+          <section className="mx-auto mt-8 grid max-w-3xl gap-5 md:grid-cols-2">
             <WorkspaceCard icon="🛒" title="Buying Escrows" description="Create a secure escrow, deposit USDC, and release payment after delivery." onClick={() => navigate("/dashboard/buying")} />
             <WorkspaceCard icon="🏪" title="Selling Escrows" description="See accepted sales, confirm delivery, and track payments received." onClick={() => navigate("/dashboard/selling")} />
           </section>
@@ -267,11 +291,11 @@ function LiveEscrowOverview({
   });
 
   return (
-    <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-8 text-white shadow-xl">
+    <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-6 text-white shadow-lg">
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-200">Live ProofPay Network</p>
-          <h2 className="mt-3 text-3xl font-bold">Protected by smart-contract escrow</h2>
+          <h2 className="mt-2 text-2xl font-bold">Protected by smart-contract escrow</h2>
           <p className="mt-2 max-w-2xl text-blue-100">Live values read directly from the deployed Arc Testnet escrow contract.</p>
         </div>
         <div className="relative flex flex-col items-end gap-3">
@@ -289,7 +313,7 @@ function LiveEscrowOverview({
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="USDC Locked" value={hasStats ? `${lockedAmount} USDC` : "Loading…"} primary />
         <StatCard label="Live Escrows" value={hasStats ? stats.liveEscrows ?? "Checking…" : "Loading…"} />
         <StatCard label="Active Buyers" value={hasStats ? stats.activeBuyers ?? "Checking…" : "Loading…"} />
@@ -302,9 +326,9 @@ function LiveEscrowOverview({
 
 function StatCard({ label, value, primary = false }) {
   return (
-    <div className={`rounded-2xl border p-5 ${primary ? "border-white bg-white text-slate-900" : "border-white/20 bg-white/10 text-white"}`}>
+    <div className={`rounded-xl border p-4 ${primary ? "border-white bg-white text-slate-900" : "border-white/20 bg-white/10 text-white"}`}>
       <p className={`text-sm font-medium ${primary ? "text-slate-500" : "text-blue-100"}`}>{label}</p>
-      <p className="mt-2 text-2xl font-bold">{value}</p>
+      <p className="mt-1.5 text-xl font-bold">{value}</p>
     </div>
   );
 }
@@ -328,11 +352,11 @@ function BackToWorkspaces({ onClick }) {
 
 function WorkspaceCard({ icon, title, description, onClick }) {
   return (
-    <button onClick={onClick} className="rounded-3xl border border-blue-200 bg-white p-10 text-center shadow-sm transition hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl">
-      <div className="text-6xl">{icon}</div>
-      <h2 className="mt-6 text-3xl font-bold text-slate-900">{title}</h2>
-      <p className="mt-3 leading-7 text-slate-600">{description}</p>
-      <span className="mt-7 inline-block rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white">Open {title}</span>
+    <button onClick={onClick} className="rounded-2xl border border-blue-200 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:border-blue-400 hover:shadow-lg">
+      <div className="text-4xl">{icon}</div>
+      <h2 className="mt-4 text-2xl font-bold text-slate-900">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+      <span className="mt-5 inline-block rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">Open {title}</span>
     </button>
   );
 }
@@ -341,7 +365,7 @@ function DashboardSection({ title, description, latestDeposit, children }) {
   return (
     <section className="mt-8">
       {latestDeposit && <div className="mb-5 flex justify-end"><DepositSuccessCard deposit={latestDeposit} /></div>}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">{children}</div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{children}</div>
     </section>
   );
 }
@@ -377,12 +401,12 @@ function RoleCard({ icon, title, description, count, tone, onClick }) {
   const isPrimary = tone === "blue";
 
   return (
-    <button onClick={onClick} className={`rounded-3xl border p-7 text-left shadow-sm transition hover:shadow-lg ${tones[tone]}`}>
-      <div className="text-4xl">{icon}</div>
-      <h3 className="mt-5 text-2xl font-bold">{title}</h3>
-      <p className={`mt-2 ${isPrimary ? "text-blue-100" : "text-slate-600"}`}>{description}</p>
+    <button onClick={onClick} className={`rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md ${tones[tone]}`}>
+      <div className="text-3xl">{icon}</div>
+      <h3 className="mt-3 text-xl font-bold">{title}</h3>
+      <p className={`mt-1.5 text-sm ${isPrimary ? "text-blue-100" : "text-slate-600"}`}>{description}</p>
       {typeof count === "number" && (
-        <div className={`mt-5 inline-flex rounded-full px-4 py-2 font-bold ${countColors[tone]}`}>
+        <div className={`mt-4 inline-flex rounded-full px-3 py-1.5 text-sm font-bold ${countColors[tone]}`}>
           {count} {count === 1 ? "Order" : "Orders"}
         </div>
       )}

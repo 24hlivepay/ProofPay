@@ -58,18 +58,18 @@ export default function CreateEscrow() {
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar />
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
         <button onClick={() => navigate("/dashboard/buying")} className="mb-8 font-semibold text-blue-600">
           ← Back to Buying Escrows
         </button>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-          <h1 className="text-4xl font-bold text-slate-900">Create New Escrow</h1>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <h1 className="text-3xl font-bold text-slate-900">Create New Escrow</h1>
           <p className="mt-3 text-slate-600">
             Create the deal and send its secure link to the seller. Their wallet will bind automatically when they accept.
           </p>
 
-          <div className="mt-10 rounded-2xl border p-8">
+          <div className="mt-7 rounded-xl border p-5 sm:p-6">
             <h2 className="mb-6 text-2xl font-bold">Buyer Information</h2>
             <div className="space-y-5">
               <InputField placeholder="Buyer Name" value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
@@ -84,7 +84,7 @@ export default function CreateEscrow() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-2xl border p-8">
+          <div className="mt-6 rounded-xl border p-5 sm:p-6">
             <h2 className="mb-6 text-2xl font-bold">Seller Information</h2>
             <InputField placeholder="Business / Seller Name" value={sellerName} onChange={(event) => setSellerName(event.target.value)} />
           </div>

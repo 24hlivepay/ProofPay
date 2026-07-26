@@ -76,10 +76,10 @@ export default function ActiveOrders() {
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar />
-      <main className="mx-auto max-w-6xl px-6 py-12">
+      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900">{isSellerRole ? "Active Sales" : "Active Purchases"}</h1>
+            <h1 className="text-3xl font-bold text-slate-900">{isSellerRole ? "Active Sales" : "Active Purchases"}</h1>
             <p className="mt-2 text-slate-600">{isSellerRole ? "Confirm delivery after the buyer has locked USDC." : "Track locked funds and release payment after delivery."}</p>
           </div>
           <button onClick={() => navigate(isSellerRole ? "/dashboard/selling" : "/dashboard/buying")} className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">← {isSellerRole ? "Selling Escrows" : "Buying Escrows"}</button>
@@ -94,8 +94,8 @@ export default function ActiveOrders() {
 
         <div className="mt-8 space-y-5">
           {!loading && orders.length === 0 && (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
-              <div className="text-5xl">📦</div>
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+              <div className="text-4xl">📦</div>
               <h2 className="mt-5 text-2xl font-bold text-slate-900">No active {isSellerRole ? "sales" : "purchases"}</h2>
               <p className="mt-2 text-slate-600">Live escrow records will appear here after USDC is locked.</p>
             </div>
@@ -108,7 +108,7 @@ export default function ActiveOrders() {
             return (
             <article
               key={order.escrowId}
-              className={`rounded-3xl border bg-white p-7 shadow-sm ${
+              className={`rounded-2xl border bg-white p-5 shadow-sm ${
                 deliveryConfirmed ? "border-green-300" : "border-yellow-200"
               }`}
             >
