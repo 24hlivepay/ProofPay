@@ -14,9 +14,7 @@ export default function Navbar() {
           onClick={() => navigate("/")}
           className="flex items-center gap-3 text-left"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white">
-            P
-          </span>
+          <img src="/proofpay-logo.svg" alt="" className="h-10 w-10" />
           <span className="text-lg font-bold tracking-tight text-slate-900">
             ProofPay
           </span>
