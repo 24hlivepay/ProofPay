@@ -138,6 +138,11 @@ export default function Hero() {
                 {walletStatus || "Opening your wallet..."}
               </p>
             )}
+            {walletError && !connecting && (
+              <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700">
+                {walletError}
+              </p>
+            )}
           </div>
         </div>
       )}
