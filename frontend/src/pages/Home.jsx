@@ -132,26 +132,25 @@ export default function Home() {
 
     async function loadNetworkStats() {
       try {
-        const contractStats = await withTimeout(
-          getLiveContractStats(),
-          CONTRACT_STATS_TIMEOUT_MS
-        );
-        const needsDatabaseFallback = [
-          contractStats.liveEscrows,
-          contractStats.activeBuyers,
-          contractStats.activeSellers,
-        ].some((value) => value === null || value === undefined);
-        const databaseStats = needsDatabaseFallback
-          ? (await api.get("/escrow-stats")).data
-          : {};
+        const [contractStats, databaseResponse] = await Promise.all([
+          withTimeout(getLiveContractStats(), CONTRACT_STATS_TIMEOUT_MS)
+            .catch(() => ({})),
+          api.get("/escrow-stats"),
+        ]);
+        const databaseStats = databaseResponse.data;
 
         if (mounted) {
           setNetworkStats({
             ...EMPTY_STATS,
-            ...databaseStats,
             ...Object.fromEntries(
               Object.entries(contractStats).filter(([, value]) => value !== null && value !== undefined)
             ),
+            // Database totals represent all ProofPay activity. The contract
+            // remains the source of truth for the currently locked balance.
+            liveEscrows: databaseStats.liveEscrows ?? 0,
+            activeBuyers: databaseStats.activeBuyers ?? 0,
+            activeSellers: databaseStats.activeSellers ?? 0,
+            lockedUsdc: contractStats.lockedUsdc ?? databaseStats.lockedUsdc ?? 0,
           });
           setNetworkStatsError("");
         }
@@ -349,9 +348,9 @@ function LiveEscrowOverview({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="USDC Locked" value={hasStats ? `${lockedAmount} USDC` : "Loading…"} primary />
-        <StatCard label="Live Escrows" value={hasStats ? stats.liveEscrows ?? "Checking…" : "Loading…"} />
-        <StatCard label="Active Buyers" value={hasStats ? stats.activeBuyers ?? "Checking…" : "Loading…"} />
-        <StatCard label="Active Sellers" value={hasStats ? stats.activeSellers ?? "Checking…" : "Loading…"} />
+        <StatCard label="Total Escrows" value={hasStats ? stats.liveEscrows ?? "Checking…" : "Loading…"} />
+        <StatCard label="Buyers" value={hasStats ? stats.activeBuyers ?? "Checking…" : "Loading…"} />
+        <StatCard label="Verified Sellers" value={hasStats ? stats.activeSellers ?? "Checking…" : "Loading…"} />
       </div>
       {statsError && <p className="mt-5 text-sm font-medium text-blue-100">{statsError}</p>}
     </section>
