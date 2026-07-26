@@ -1,50 +1,68 @@
 import { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
-import { API_BASE_URL } from "../services/api";
 
 const circleAppId = import.meta.env.VITE_CIRCLE_APP_ID;
-const circleClientKey = import.meta.env.VITE_CIRCLE_CLIENT_KEY;
 
-export const circleSdk = new W3SSdk(
-  {
-    appSettings: {
-      appId: circleAppId,
-      clientKey: circleClientKey,
-    },
+if (!circleAppId) {
+  console.warn("VITE_CIRCLE_APP_ID is not configured.");
+}
+
+export const circleSdk = new W3SSdk({
+  appSettings: {
+    appId: circleAppId,
   },
-  async (error, result) => {
-    console.log("Circle Login Callback");
+});
 
-    if (error) {
-      console.error("Circle Login Error:", error);
-      return;
-    }
+export function getCircleDeviceId() {
+  return circleSdk.getDeviceId();
+}
 
-    console.log("Circle Login Result:", result);
-
-    if (result) {
-
-      localStorage.setItem(
-        "proofpay-circle-auth",
-        JSON.stringify(result)
-      );
-
-      const response = await fetch(
-        `${API_BASE_URL}/circle/initialize-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userToken: result.userToken,
-          }),
+export function verifyCircleEmailOtp(otpSession) {
+  return new Promise((resolve, reject) => {
+    circleSdk.updateConfigs(
+      {
+        appSettings: {
+          appId: circleAppId,
+        },
+        loginConfigs: {
+          deviceToken: otpSession.deviceToken,
+          deviceEncryptionKey: otpSession.deviceEncryptionKey,
+          otpToken: otpSession.otpToken,
+        },
+      },
+      (error, result) => {
+        if (error) {
+          reject(new Error(error.message || "Circle could not verify the email code."));
+          return;
         }
-      );
 
-      const data = await response.json();
+        if (!result?.userToken || !result?.encryptionKey) {
+          reject(new Error("Circle did not return a valid wallet session."));
+          return;
+        }
 
-      console.log("Initialize User:", data);
+        resolve(result);
+      }
+    );
 
-    }
-  }
-);
+    circleSdk.verifyOtp();
+  });
+}
+
+export function executeCircleChallenge({ challengeId, userToken, encryptionKey }) {
+  return new Promise((resolve, reject) => {
+    circleSdk.setAuthentication({ userToken, encryptionKey });
+    circleSdk.execute(challengeId, (error, result) => {
+      if (error) {
+        reject(new Error(error.message || "Circle could not create the wallet."));
+        return;
+      }
+
+      if (result?.status !== "COMPLETE") {
+        reject(new Error(`Circle wallet setup ended with status: ${result?.status || "UNKNOWN"}.`));
+        return;
+      }
+
+      resolve(result);
+    });
+  });
+}

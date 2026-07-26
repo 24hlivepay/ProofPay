@@ -102,9 +102,11 @@ Set at minimum:
 PORT=5001
 FRONTEND_URL=http://localhost:5173
 DATABASE_URL=your_neon_postgres_connection_string
+CIRCLE_API_KEY=your_circle_standard_api_key
 ```
 
-Circle variables are optional at this checkpoint and reserved for the planned user-controlled wallet integration.
+The Circle API key stays on the backend and is required for email OTP and
+user-controlled wallet creation.
 
 ### 3. Configure the frontend
 
@@ -116,7 +118,12 @@ For local development:
 
 ```env
 VITE_API_URL=http://localhost:5001/api
+VITE_CIRCLE_APP_ID=your_circle_user_controlled_wallet_app_id
 ```
+
+Email authentication must also be enabled and configured under
+**Wallets → User Controlled → Configurator → Email** in the Circle Developer
+Console.
 
 ### 4. Run both services
 
@@ -128,7 +135,7 @@ npm --prefix frontend run dev
 ## Roadmap
 
 - Expand public wallet and device testing
-- Add Circle user-controlled wallets
+- Complete Circle wallet contract execution for the existing escrow actions
 - Harden failure, expiry, refund, and dispute paths
 - Add automated smart-contract and end-to-end test coverage
 - Improve mobile onboarding and transaction guidance
