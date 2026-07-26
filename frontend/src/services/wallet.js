@@ -126,10 +126,25 @@ export async function connectWalletWithOptions({
   onStatus?.(requestAccountSelection ? `Choose the ${wallet.label} account you want to use...` : `Connecting ${wallet.label}...`);
 
   if (requestAccountSelection) {
-    await ethereum.request({
-      method: "wallet_requestPermissions",
-      params: [{ eth_accounts: {} }],
-    });
+    if (walletType === "rabby") {
+      // Rabby does not consistently reopen an account picker for
+      // wallet_requestPermissions. Revoking the dapp permission first forces
+      // a fresh connection request where the user can choose another account.
+      try {
+        await ethereum.request({
+          method: "wallet_revokePermissions",
+          params: [{ eth_accounts: {} }],
+        });
+      } catch {
+        // Older Rabby versions may not expose permission revocation. The
+        // request below still reopens Rabby's connection interface.
+      }
+    } else {
+      await ethereum.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }],
+      });
+    }
   }
 
   await ethereum.request({ method: "eth_requestAccounts" });

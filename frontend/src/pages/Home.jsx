@@ -55,6 +55,34 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
+    const injected = window.ethereum;
+    const provider = walletType === "rabby"
+      ? (injected?.providers || []).find((item) => item?.isRabby) ||
+        (injected?.isRabby ? injected : null)
+      : injected;
+
+    if (!provider?.on) return undefined;
+
+    const handleAccountsChanged = (accounts = []) => {
+      const nextAddress = accounts[0] || "";
+      if (!nextAddress) {
+        setWalletAddress("");
+        setWalletStatus("Wallet disconnected. Connect again to continue.");
+        return;
+      }
+
+      if (nextAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        setWalletStatus("Wallet account changed. Sign the ProofPay message to continue.");
+        handleConnectWallet();
+      }
+    };
+
+    provider.on("accountsChanged", handleAccountsChanged);
+    return () => provider.removeListener?.("accountsChanged", handleAccountsChanged);
+  }, [walletAddress]);
+
+  useEffect(() => {
     let mounted = true;
 
     async function loadCounts() {
