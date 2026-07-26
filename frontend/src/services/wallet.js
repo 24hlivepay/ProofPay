@@ -43,10 +43,6 @@ function getInjectedWallet(walletType) {
 }
 
 async function getWalletProvider(walletType) {
-  if (walletType === "circle") {
-    return null;
-  }
-
   const wallet = WALLET_DETAILS[walletType] || WALLET_DETAILS.metamask;
   const announcedProviders = [];
   const handleProvider = (event) => announcedProviders.push(event.detail);
@@ -209,7 +205,7 @@ export function getWalletSession() {
 
 export async function disconnectWallet() {
   const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
-  const ethereum = walletType === "circle" ? null : await getWalletProvider(walletType);
+  const ethereum = await getWalletProvider(walletType);
   if (ethereum) {
     try {
       await ethereum.request({
@@ -225,7 +221,4 @@ export async function disconnectWallet() {
   localStorage.removeItem("proofpay-wallet");
   localStorage.removeItem("proofpay-wallet-session");
   localStorage.removeItem("proofpay-wallet-type");
-  localStorage.removeItem("proofpay-email");
-  sessionStorage.removeItem("proofpay-circle-auth");
-  sessionStorage.removeItem("proofpay-circle-otp-session");
 }

@@ -26,8 +26,6 @@ function withTimeout(promise, timeoutMs) {
 export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
-  const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
-  const isCircleWallet = walletType === "circle";
   const [walletAddress, setWalletAddress] = useState(() => getWalletSession()?.address || "");
   const [walletError, setWalletError] = useState("");
   const [walletStatus, setWalletStatus] = useState("");
@@ -36,15 +34,9 @@ export default function Home() {
   const [sellerCounts, setSellerCounts] = useState(EMPTY_COUNTS);
   const [networkStats, setNetworkStats] = useState(null);
   const [networkStatsError, setNetworkStatsError] = useState("");
-  const [networkName, setNetworkName] = useState(
-    isCircleWallet ? "Arc Testnet" : "Checking network..."
-  );
+  const [networkName, setNetworkName] = useState("Checking network...");
 
   useEffect(() => {
-    if (isCircleWallet) {
-      return undefined;
-    }
-
     if (!window.ethereum) {
       setNetworkName("No wallet detected");
       return undefined;
@@ -60,11 +52,10 @@ export default function Home() {
 
     window.ethereum.on?.("chainChanged", updateNetworkName);
     return () => window.ethereum.removeListener?.("chainChanged", updateNetworkName);
-  }, [isCircleWallet]);
+  }, []);
 
   useEffect(() => {
-    if (isCircleWallet) return undefined;
-
+    const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
     const injected = window.ethereum;
     const provider = walletType === "rabby"
       ? (injected?.providers || []).find((item) => item?.isRabby) ||
@@ -89,7 +80,7 @@ export default function Home() {
 
     provider.on("accountsChanged", handleAccountsChanged);
     return () => provider.removeListener?.("accountsChanged", handleAccountsChanged);
-  }, [isCircleWallet, walletAddress, walletType]);
+  }, [walletAddress]);
 
   useEffect(() => {
     let mounted = true;
@@ -275,11 +266,7 @@ export default function Home() {
             networkName={networkName}
             walletMenuOpen={walletMenuOpen}
             onWalletClick={handleWalletButton}
-            onChangeWallet={() => (
-              isCircleWallet
-                ? navigate("/login")
-                : handleConnectWallet({ requestAccountSelection: true })
-            )}
+            onChangeWallet={() => handleConnectWallet({ requestAccountSelection: true })}
             onDisconnectWallet={handleDisconnectWallet}
           />
         )}

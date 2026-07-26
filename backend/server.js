@@ -249,36 +249,41 @@ app.post("/api/wallet/connect", async (req, res) => {
 
 app.post("/api/circle/request-email-otp", async (req, res) => {
   try {
-    const email = String(req.body.email || "").trim().toLowerCase();
-    const deviceId = String(req.body.deviceId || "").trim();
+    const { email } = req.body;
 
-    if (!email || !deviceId) {
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Email and Circle device ID are required.",
+        message: "Email is required",
       });
     }
 
     const response = await axios.post(
       `${CIRCLE_API_URL}/v1/w3s/users/email/token`,
+
       {
         idempotencyKey: crypto.randomUUID(),
-        deviceId,
-        email,
+        encryptionKey: crypto.randomUUID(),
+        deviceId: crypto.randomUUID(),
+        userToken: crypto.randomUUID(),
+        email: email,
+
+        blockchains: ["ARB-SEPOLIA"],
       },
       {
         headers: circleHeaders,
       }
     );
+    console.log("Circle Response:", response.data);
+    console.log("User created successfully");
 
     return res.json(response.data);
 
   } catch (error) {
-    console.error("Circle email OTP error:", error.response?.data || error.message);
+    console.log(error.response?.data || error);
 
-    return res.status(error.response?.status || 500).json({
+    return res.status(500).json({
       success: false,
-      message: error.response?.data?.message || "Circle could not send the verification code.",
       error: error.response?.data || error.message,
     });
   }
@@ -288,7 +293,7 @@ app.post("/api/circle/initialize-user", async (req, res) => {
 
   try {
 
-    const userToken = req.get("X-User-Token");
+    const { userToken } = req.body;
 
     if (!userToken) {
       return res.status(400).json({
@@ -301,7 +306,7 @@ app.post("/api/circle/initialize-user", async (req, res) => {
       `${CIRCLE_API_URL}/v1/w3s/user/initialize`,
       {
         idempotencyKey: crypto.randomUUID(),
-        accountType: "EOA",
+        accountType: "SCA",
         blockchains: ["ARC-TESTNET"],
       },
       {
@@ -325,42 +330,6 @@ app.post("/api/circle/initialize-user", async (req, res) => {
 
   }
 
-});
-
-app.get("/api/circle/wallets", async (req, res) => {
-  const userToken = req.get("X-User-Token");
-
-  if (!userToken) {
-    return res.status(400).json({
-      success: false,
-      message: "User token is required.",
-    });
-  }
-
-  try {
-    const response = await axios.get(
-      `${CIRCLE_API_URL}/v1/w3s/wallets`,
-      {
-        headers: {
-          ...circleHeaders,
-          "X-User-Token": userToken,
-        },
-        params: {
-          blockchain: "ARC-TESTNET",
-        },
-      }
-    );
-
-    return res.json(response.data);
-  } catch (error) {
-    console.error("Circle wallet lookup error:", error.response?.data || error.message);
-
-    return res.status(error.response?.status || 500).json({
-      success: false,
-      message: error.response?.data?.message || "Circle could not load the wallet.",
-      error: error.response?.data || error.message,
-    });
-  }
 });
 
 /*
@@ -851,6 +820,36 @@ app.get("/api/escrow-stats", async (req, res) => {
     activeSellers,
   });
 });
+
+app.post("/api/circle/verify-email-otp", async (req, res) => {
+
+  const { email, otp, otpResponse } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({
+      success: false,
+      message: "Email and OTP are required",
+    });
+  }
+  const deviceToken = otpResponse.data.deviceToken;
+
+  const encryptionKey = otpResponse.data.deviceEncryptionKey;
+  const otpToken = otpResponse.data.otpToken;
+
+  return res.json({
+    success: true,
+    message: "OTP verified successfully",
+  });
+
+  console.log(req.body);
+
+  return res.json({
+    success: true,
+    message: "OTP route reached successfully",
+  });
+
+});
+
 
 /*
 |--------------------------------------------------------------------------
