@@ -17,7 +17,12 @@ const WALLET_DETAILS = {
   metamask: {
     label: "MetaMask",
     rdns: "io.metamask",
-    matches: (provider) => provider?.isMetaMask && !provider?.isZerion && !provider?.isRabby,
+    matches: (provider) =>
+      provider?.isMetaMask &&
+      !provider?.isZerion &&
+      !provider?.isRabby &&
+      !provider?.isPhantom &&
+      !provider?.isCoinbaseWallet,
   },
   rabby: {
     label: "Rabby Wallet",
@@ -39,11 +44,6 @@ function getInjectedWallet(walletType) {
 
 async function getWalletProvider(walletType) {
   const wallet = WALLET_DETAILS[walletType] || WALLET_DETAILS.metamask;
-  const injectedWallet = getInjectedWallet(walletType);
-  if (injectedWallet) {
-    return injectedWallet;
-  }
-
   const announcedProviders = [];
   const handleProvider = (event) => announcedProviders.push(event.detail);
   window.addEventListener("eip6963:announceProvider", handleProvider);
@@ -51,11 +51,11 @@ async function getWalletProvider(walletType) {
   await new Promise((resolve) => setTimeout(resolve, 150));
   window.removeEventListener("eip6963:announceProvider", handleProvider);
 
-  return announcedProviders.find(
-    ({ info, provider }) =>
-      info?.rdns === wallet.rdns ||
-      wallet.matches(provider)
+  const exactProvider = announcedProviders.find(
+    ({ info }) => info?.rdns === wallet.rdns
   )?.provider;
+
+  return exactProvider || getInjectedWallet(walletType);
 }
 
 export async function ensureArcTestnet(onStatus, walletProvider) {

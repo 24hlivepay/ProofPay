@@ -20,7 +20,12 @@ export default function Hero() {
         onStatus: setWalletStatus,
       });
 
-      await api.post("/wallet/connect", walletSession);
+      await api.post("/wallet/connect", {
+        address: walletSession.address,
+        message: walletSession.message,
+        signature: walletSession.signature,
+        signedAt: walletSession.signedAt,
+      });
       setWalletStatus("Wallet connected to Arc Testnet. Opening your dashboard...");
       setShowWalletChoices(false);
       navigate("/dashboard");

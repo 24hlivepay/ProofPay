@@ -131,7 +131,12 @@ export default function Home() {
         requestAccountSelection,
         onStatus: setWalletStatus,
       });
-      await api.post("/wallet/connect", walletSession);
+      await api.post("/wallet/connect", {
+        address: walletSession.address,
+        message: walletSession.message,
+        signature: walletSession.signature,
+        signedAt: walletSession.signedAt,
+      });
       setWalletAddress(walletSession.address);
       setNetworkName("Arc Testnet");
       setWalletStatus("Wallet connected to Arc Testnet.");
