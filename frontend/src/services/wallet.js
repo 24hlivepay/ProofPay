@@ -13,12 +13,60 @@ const ARC_TESTNET_NETWORK = {
   rpcUrls: ["https://rpc.testnet.arc.network"],
 };
 
-export async function ensureArcTestnet(onStatus) {
-  if (!window.ethereum) {
-    throw new Error("MetaMask is not installed.");
+const WALLET_DETAILS = {
+  metamask: {
+    label: "MetaMask",
+    rdns: "io.metamask",
+    matches: (provider) => provider?.isMetaMask && !provider?.isZerion && !provider?.isRabby,
+  },
+  rabby: {
+    label: "Rabby Wallet",
+    rdns: "io.rabby",
+    matches: (provider) => Boolean(provider?.isRabby),
+  },
+};
+
+function getInjectedWallet(walletType) {
+  const wallet = WALLET_DETAILS[walletType] || WALLET_DETAILS.metamask;
+  const injected = window.ethereum;
+  const providers = injected?.providers || [];
+
+  return (
+    providers.find(wallet.matches) ||
+    (wallet.matches(injected) ? injected : null)
+  );
+}
+
+async function getWalletProvider(walletType) {
+  const wallet = WALLET_DETAILS[walletType] || WALLET_DETAILS.metamask;
+  const injectedWallet = getInjectedWallet(walletType);
+  if (injectedWallet) {
+    return injectedWallet;
   }
 
-  const currentChainId = await window.ethereum.request({
+  const announcedProviders = [];
+  const handleProvider = (event) => announcedProviders.push(event.detail);
+  window.addEventListener("eip6963:announceProvider", handleProvider);
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  window.removeEventListener("eip6963:announceProvider", handleProvider);
+
+  return announcedProviders.find(
+    ({ info, provider }) =>
+      info?.rdns === wallet.rdns ||
+      wallet.matches(provider)
+  )?.provider;
+}
+
+export async function ensureArcTestnet(onStatus, walletProvider) {
+  const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
+  const walletLabel = WALLET_DETAILS[walletType]?.label || "wallet";
+  const ethereum = walletProvider || await getWalletProvider(walletType);
+  if (!ethereum) {
+    throw new Error(`${WALLET_DETAILS[walletType].label} is not installed.`);
+  }
+
+  const currentChainId = await ethereum.request({
     method: "eth_chainId",
   });
 
@@ -27,8 +75,8 @@ export async function ensureArcTestnet(onStatus) {
   }
 
   try {
-    onStatus?.("Switching MetaMask to Arc Testnet...");
-    await window.ethereum.request({
+    onStatus?.(`Switching ${walletLabel} to Arc Testnet...`);
+    await ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: ARC_TESTNET_CHAIN_HEX }],
     });
@@ -36,13 +84,13 @@ export async function ensureArcTestnet(onStatus) {
   } catch (error) {
     if (error.code === 4902) {
       try {
-        onStatus?.("Arc Testnet is not in MetaMask. Adding it now...");
-        await window.ethereum.request({
+        onStatus?.(`Arc Testnet is not in ${walletLabel}. Adding it now...`);
+        await ethereum.request({
           method: "wallet_addEthereumChain",
           params: [ARC_TESTNET_NETWORK],
         });
         onStatus?.("Arc Testnet added. Switching your wallet...");
-        await window.ethereum.request({
+        await ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: ARC_TESTNET_CHAIN_HEX }],
         });
@@ -57,31 +105,37 @@ export async function ensureArcTestnet(onStatus) {
 }
 
 export async function connectWallet() {
-  return connectWalletWithOptions();
+  return connectWalletWithOptions({
+    walletType: localStorage.getItem("proofpay-wallet-type") || "metamask",
+  });
 }
 
 export async function connectWalletWithOptions({
   requireSignature = false,
   requestAccountSelection = false,
+  walletType = localStorage.getItem("proofpay-wallet-type") || "metamask",
   onStatus,
 } = {}) {
-  if (!window.ethereum) {
-    throw new Error("MetaMask is not installed.");
+  const wallet = WALLET_DETAILS[walletType] || WALLET_DETAILS.metamask;
+  const ethereum = await getWalletProvider(walletType);
+  if (!ethereum) {
+    throw new Error(`${wallet.label} is not installed.`);
   }
 
-  onStatus?.(requestAccountSelection ? "Choose the wallet you want to use..." : "Connecting your wallet...");
+  localStorage.setItem("proofpay-wallet-type", walletType);
+  onStatus?.(requestAccountSelection ? `Choose the ${wallet.label} account you want to use...` : `Connecting ${wallet.label}...`);
 
   if (requestAccountSelection) {
-    await window.ethereum.request({
+    await ethereum.request({
       method: "wallet_requestPermissions",
       params: [{ eth_accounts: {} }],
     });
   }
 
-  await window.ethereum.request({ method: "eth_requestAccounts" });
-  const networkStatus = await ensureArcTestnet(onStatus);
+  await ethereum.request({ method: "eth_requestAccounts" });
+  const networkStatus = await ensureArcTestnet(onStatus, ethereum);
 
-  const provider = new BrowserProvider(window.ethereum);
+  const provider = new BrowserProvider(ethereum);
   const signer = await provider.getSigner();
   const address = await signer.getAddress();
 
@@ -116,10 +170,10 @@ export function getWalletErrorMessage(error) {
   }
 
   if (/not installed/i.test(message)) {
-    return "MetaMask is not installed. Install it first, then connect your wallet.";
+    return message;
   }
 
-  return "We could not connect your wallet. Please unlock MetaMask and try again.";
+  return "We could not connect your wallet. Please unlock MetaMask or Rabby and try again.";
 }
 
 export function getConnectedWallet() {
@@ -135,9 +189,11 @@ export function getWalletSession() {
 }
 
 export async function disconnectWallet() {
-  if (window.ethereum) {
+  const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
+  const ethereum = await getWalletProvider(walletType);
+  if (ethereum) {
     try {
-      await window.ethereum.request({
+      await ethereum.request({
         method: "wallet_revokePermissions",
         params: [{ eth_accounts: {} }],
       });
@@ -149,4 +205,5 @@ export async function disconnectWallet() {
 
   localStorage.removeItem("proofpay-wallet");
   localStorage.removeItem("proofpay-wallet-session");
+  localStorage.removeItem("proofpay-wallet-type");
 }

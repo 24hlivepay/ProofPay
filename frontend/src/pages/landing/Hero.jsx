@@ -8,22 +8,25 @@ export default function Hero() {
   const [connecting, setConnecting] = useState(false);
   const [walletStatus, setWalletStatus] = useState("");
   const [walletError, setWalletError] = useState("");
+  const [showWalletChoices, setShowWalletChoices] = useState(false);
 
-  async function handleWalletConnection() {
+  async function handleWalletConnection(walletType) {
     try {
       setConnecting(true);
       setWalletError("");
       const walletSession = await connectWalletWithOptions({
         requireSignature: true,
+        walletType,
         onStatus: setWalletStatus,
       });
 
       await api.post("/wallet/connect", walletSession);
       setWalletStatus("Wallet connected to Arc Testnet. Opening your dashboard...");
+      setShowWalletChoices(false);
       navigate("/dashboard");
     } catch (error) {
       setWalletStatus("");
-      setWalletError(error.message || getWalletErrorMessage(error));
+      setWalletError(getWalletErrorMessage(error));
     } finally {
       setConnecting(false);
     }
@@ -56,12 +59,31 @@ export default function Hero() {
 
           <button
             type="button"
-            onClick={handleWalletConnection}
+            onClick={() => setShowWalletChoices((visible) => !visible)}
             disabled={connecting}
             className="w-full rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {connecting ? "Connecting..." : "Connect with Wallet"}
           </button>
+
+          {showWalletChoices && !connecting && (
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+              <button
+                type="button"
+                onClick={() => handleWalletConnection("metamask")}
+                className="rounded-lg border border-slate-200 px-4 py-3 font-semibold text-slate-800 hover:border-blue-500 hover:bg-blue-50"
+              >
+                MetaMask
+              </button>
+              <button
+                type="button"
+                onClick={() => handleWalletConnection("rabby")}
+                className="rounded-lg border border-slate-200 px-4 py-3 font-semibold text-slate-800 hover:border-blue-500 hover:bg-blue-50"
+              >
+                Rabby Wallet
+              </button>
+            </div>
+          )}
         </div>
 
         {walletStatus && <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">{walletStatus}</p>}
