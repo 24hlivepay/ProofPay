@@ -797,25 +797,25 @@ app.get("/api/escrows", async (req, res) => {
 
 app.get("/api/escrow-stats", async (req, res) => {
   const allEscrows = await loadEscrows();
-  const liveEscrows = allEscrows.filter(
+  const lockedEscrows = allEscrows.filter(
     (escrow) => escrow.status === "Funds Locked" || escrow.status === "Delivered"
   );
 
-  const lockedUsdc = liveEscrows.reduce(
+  const lockedUsdc = lockedEscrows.reduce(
     (total, escrow) => total + (Number(escrow.amount) || 0),
     0
   );
   const activeBuyers = new Set(
-    liveEscrows.map((escrow) => escrow.buyerWallet?.toLowerCase()).filter(Boolean)
+    allEscrows.map((escrow) => escrow.buyerWallet?.toLowerCase()).filter(Boolean)
   ).size;
   const activeSellers = new Set(
-    liveEscrows.map((escrow) => escrow.sellerWallet?.toLowerCase()).filter(Boolean)
+    allEscrows.map((escrow) => escrow.sellerWallet?.toLowerCase()).filter(Boolean)
   ).size;
 
   return res.json({
     success: true,
     lockedUsdc,
-    liveEscrows: liveEscrows.length,
+    liveEscrows: allEscrows.length,
     activeBuyers,
     activeSellers,
   });
