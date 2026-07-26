@@ -114,21 +114,21 @@ export default function GenerateLink() {
 
       <Navbar />
 
-      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
+      <main className="mx-auto max-w-2xl px-5 py-7 sm:px-6">
 
 
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 
           <div className="flex items-center justify-between">
 
             <div>
 
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-2xl font-bold text-slate-900">
                 Secure Link Generated
               </h1>
 
-              <p className="mt-3 text-slate-600">
+              <p className="mt-2 text-sm text-slate-600">
                 Share this secure link with the seller.
               </p>
 
@@ -140,9 +140,9 @@ export default function GenerateLink() {
 
           </div>          {/* Escrow Summary */}
 
-          <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
+          <div className="mt-5 rounded-xl border border-slate-200 p-4 sm:p-5">
 
-            <h2 className="mb-6 text-2xl font-bold">
+            <h2 className="mb-4 text-lg font-bold">
               Escrow Summary
             </h2>
 
@@ -174,13 +174,13 @@ export default function GenerateLink() {
 
           {/* Escrow ID */}
 
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
 
             <p className="text-sm text-slate-500">
               Escrow ID
             </p>
 
-            <h2 className="mt-2 text-2xl font-bold">
+            <h2 className="mt-1 text-xl font-bold">
               {escrowData.escrowId}
             </h2>
 
@@ -188,7 +188,7 @@ export default function GenerateLink() {
 
           {/* Secure Link */}
 
-          <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-6">
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
 
             <div className="flex items-center gap-2">
 
@@ -202,7 +202,7 @@ export default function GenerateLink() {
 
             </div>
 
-            <p className="mt-4 break-all rounded-xl bg-white p-4 text-blue-600">
+            <p className="mt-3 break-all rounded-lg bg-white p-3 text-sm text-blue-600">
 
               {secureLink}
 
@@ -210,44 +210,20 @@ export default function GenerateLink() {
 
           </div>
 
-          {/* QR Placeholder */}
+          {/* Buttons */}
 
-          <div className="mt-6 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6">
-
-            <div className="text-center">
-
-              <div className="text-4xl">
-                📱
-              </div>
-
-              <h3 className="mt-4 text-2xl font-bold">
-
-                QR Code
-
-              </h3>
-
-              <p className="mt-3 text-slate-500">
-
-                Coming Soon
-
-              </p>
-
-            </div>
-
-          </div>          {/* Buttons */}
-
-          <div className="mt-8 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-2 gap-3">
 
             <button
               onClick={copyLink}
-              className="rounded-xl border py-4 font-semibold hover:bg-slate-100 transition"
+              className="rounded-xl border py-3 font-semibold transition hover:bg-slate-100"
             >
               {copied ? "✅ Link Copied" : "📋 Copy Link"}
             </button>
 
             <button
               onClick={shareLink}
-              className="rounded-xl border py-4 font-semibold hover:bg-slate-100 transition"
+              className="rounded-xl border py-3 font-semibold transition hover:bg-slate-100"
             >
               📤 Share
             </button>
@@ -256,27 +232,16 @@ export default function GenerateLink() {
 
           {/* Next Steps */}
 
-          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-6">
+          <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
 
-            <h3 className="text-xl font-bold text-blue-700">
+            <h3 className="font-bold text-blue-700">
               Next Steps
             </h3>
 
-            <ol className="mt-4 list-decimal space-y-2 pl-6 text-slate-700">
-
+            <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-700">
               <li>Copy or share the secure link with the seller.</li>
-
-              <li>Seller opens the secure ProofPay link.</li>
-
-              <li>Seller connects their wallet.</li>
-
-              <li>Seller reviews the escrow details.</li>
-
-              <li>Seller generates a verification code.</li>
-
-              <li>Buyer verifies the code.</li>
-
-              <li>Buyer deposits USDC into escrow.</li>
+              <li>The seller connects their wallet and accepts the deal.</li>
+              <li>Verify the seller code, then deposit test USDC.</li>
 
             </ol>
 
@@ -284,7 +249,7 @@ export default function GenerateLink() {
 
           {/* Actions */}
 
-          <div className="mt-10 grid gap-4">
+          <div className="mt-6 grid gap-3">
 
             <PrimaryButton
               onClick={() => navigate("/waiting")}
