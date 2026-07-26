@@ -15,8 +15,12 @@ export default function WaitingSeller() {
 
   const [copied, setCopied] = useState(false);
 
+  const sellerRejected =
+    escrowData.status === "Cancelled" &&
+    escrowData.cancellationReason === "Rejected by Seller";
+
   const secureLink =
-    `http://localhost:5173/escrow/${escrowData.escrowId}`;
+    `${window.location.origin}/escrow/${escrowData.escrowId}`;
 
   /*
   |--------------------------------------------------------------------------
@@ -38,7 +42,7 @@ export default function WaitingSeller() {
 
       }, 2000);
 
-    } catch (error) {
+    } catch {
 
       alert("Unable to copy link.");
 
@@ -116,6 +120,12 @@ export default function WaitingSeller() {
 
         }
 
+        if (response.data.escrow.status === "Cancelled") {
+
+          clearInterval(interval);
+
+        }
+
       } catch (error) {
 
         console.log(error);
@@ -126,7 +136,7 @@ export default function WaitingSeller() {
 
     return () => clearInterval(interval);
 
-  }, [escrowData.escrowId, navigate]);
+  }, [escrowData.escrowId, navigate, setEscrowData]);
 
   return (
 
@@ -150,17 +160,23 @@ export default function WaitingSeller() {
             <div>
 
               <h1 className="text-4xl font-bold text-slate-900">
-                Waiting for Seller
+                {sellerRejected ? "Deal Rejected" : "Waiting for Seller"}
               </h1>
 
               <p className="mt-3 text-slate-600">
-                Your escrow request has been created successfully.
+                {sellerRejected
+                  ? "The seller has rejected this escrow request."
+                  : "Your escrow request has been created successfully."}
               </p>
 
             </div>
 
-            <div className="rounded-full bg-yellow-100 px-5 py-2 font-semibold text-yellow-700">
-              Waiting
+            <div className={`rounded-full px-5 py-2 font-semibold ${
+              sellerRejected
+                ? "bg-red-100 text-red-700"
+                : "bg-yellow-100 text-yellow-700"
+            }`}>
+              {sellerRejected ? "Cancelled" : "Waiting"}
             </div>
 
           </div>          {/* Secure Link */}
@@ -272,47 +288,64 @@ export default function WaitingSeller() {
 
           {/* Live Status */}
 
-<div className="mt-8 rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-10 text-center shadow-sm">
+<div className={`mt-8 rounded-3xl border p-10 text-center shadow-sm ${
+  sellerRejected
+    ? "border-red-200 bg-gradient-to-br from-red-50 to-white"
+    : "border-blue-200 bg-gradient-to-br from-blue-50 to-white"
+}`}>
 
   <div className="text-7xl">
-    ⏳
+    {sellerRejected ? "✖️" : "⏳"}
   </div>
 
-  <h2 className="mt-6 text-4xl font-bold text-blue-700">
-    Waiting for Seller
+  <h2 className={`mt-6 text-4xl font-bold ${
+    sellerRejected ? "text-red-700" : "text-blue-700"
+  }`}>
+    {sellerRejected ? "Deal Rejected by Seller" : "Waiting for Seller"}
   </h2>
 
   <p className="mt-5 text-xl text-slate-700">
-    Your secure ProofPay escrow has been created successfully.
+    {sellerRejected
+      ? "This escrow has been cancelled. No funds were deposited."
+      : "Your secure ProofPay escrow has been created successfully."}
   </p>
 
   <p className="mt-3 text-lg leading-8 text-slate-600">
-    The seller has not opened your secure link yet.
-    <br />
-    Once the seller connects the wallet and accepts the escrow,
-    this page will automatically continue to the deposit page.
+    {sellerRejected ? (
+      "You can find this deal in Cancelled Purchases."
+    ) : (
+      <>
+        The seller has not opened your secure link yet.
+        <br />
+        Once the seller connects the wallet and accepts the escrow,
+        this page will automatically continue to the deposit page.
+      </>
+    )}
   </p>
 
 </div>
 
 {/* Auto Status */}
 
-<div className="mt-8 rounded-xl border border-green-200 bg-green-50 p-5 text-center">
+{!sellerRejected && <div className="mt-8 rounded-xl border border-green-200 bg-green-50 p-5 text-center">
 
   <p className="font-semibold text-green-700">
     ✅ ProofPay automatically checks the seller status every 2 seconds.
   </p>
 
-</div>
+</div>}
 
 {/* Continue */}
 
 <div className="mt-10">
 
   <PrimaryButton
-    onClick={() => navigate("/dashboard/buying")}
+    onClick={() => sellerRejected
+      ? navigate("/cancelled-orders", { state: { role: "buyer" } })
+      : navigate("/dashboard/buying")
+    }
   >
-    Back to Buying Escrows
+    {sellerRejected ? "View Cancelled Purchases" : "Back to Buying Escrows"}
   </PrimaryButton>
 
 </div>

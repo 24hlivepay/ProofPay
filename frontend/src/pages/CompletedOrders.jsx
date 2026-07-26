@@ -43,9 +43,11 @@ function OrderCard({ order, seller }) {
         <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-bold text-green-700">{seller ? "Payment Received" : "Payment Released"}</span>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Detail label={seller ? "Buyer" : "Seller"} value={seller ? order.buyerName : order.sellerName} />
         <Detail label={seller ? "Amount received" : "Amount paid"} value={`${order.amount} USDC`} />
+        <Detail label="Created" value={formatDate(order.createdAt)} />
+        <Detail label="Completed" value={formatDate(order.releasedAt)} />
       </div>
 
       {(order.depositTransactionHash || order.releaseTransactionHash) && (
@@ -65,3 +67,12 @@ function OrderCard({ order, seller }) {
 function Detail({ label, value }) { return <div className="rounded-xl border border-slate-200 p-4"><p className="text-sm text-slate-500">{label}</p><p className="mt-1 font-semibold text-slate-900">{value || "—"}</p></div>; }
 function ArcscanLink({ label, hash }) { return <a href={`https://testnet.arcscan.app/tx/${hash}`} target="_blank" rel="noreferrer" className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-100">{label} ↗</a>; }
 function EmptyState({ seller }) { return <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center"><div className="text-5xl">✅</div><h2 className="mt-5 text-2xl font-bold text-slate-900">{seller ? "No payments received" : "No completed purchases"}</h2><p className="mt-2 text-slate-600">Released escrow payments will appear here.</p></div>; }
+
+function formatDate(timestamp) {
+  if (!timestamp) return "—";
+
+  return new Date(timestamp).toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}

@@ -1,4 +1,5 @@
 import { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
+import { API_BASE_URL } from "../services/api";
 
 const circleAppId = import.meta.env.VITE_CIRCLE_APP_ID;
 const circleClientKey = import.meta.env.VITE_CIRCLE_CLIENT_KEY;
@@ -28,7 +29,7 @@ export const circleSdk = new W3SSdk(
       );
 
       const response = await fetch(
-        "http://localhost:5001/api/circle/initialize-user",
+        `${API_BASE_URL}/circle/initialize-user`,
         {
           method: "POST",
           headers: {
