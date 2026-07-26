@@ -12,6 +12,10 @@ function findArcWallet(wallets = []) {
   return wallets.find((wallet) => wallet.blockchain === "ARC-TESTNET");
 }
 
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
 export default function OtpVerification() {
   const navigate = useNavigate();
   const email = localStorage.getItem("proofpay-email") || "";
@@ -24,6 +28,20 @@ export default function OtpVerification() {
       headers: { "X-User-Token": userToken },
     });
     return findArcWallet(response.data.data?.wallets);
+  }
+
+  async function waitForWallet(userToken) {
+    const maxAttempts = 20;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const wallet = await loadWallet(userToken);
+      if (wallet) return wallet;
+      await wait(1500);
+    }
+
+    throw new Error(
+      "Circle is taking longer than expected to finish your wallet. Please try signing in again."
+    );
   }
 
   function saveWalletSession(wallet, auth) {
@@ -80,7 +98,8 @@ export default function OtpVerification() {
           userToken: auth.userToken,
           encryptionKey: auth.encryptionKey,
         });
-        wallet = await loadWallet(auth.userToken);
+        setStatus("Finalizing your Arc Testnet wallet...");
+        wallet = await waitForWallet(auth.userToken);
       }
 
       if (!wallet?.address) {
