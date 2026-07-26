@@ -10,7 +10,7 @@ Secure peer-to-peer USDC escrow on Arc Testnet.
 
 Peer-to-peer online deals often force one side to take the risk first: the buyer pays before delivery, or the seller delivers before payment. ProofPay replaces that trust gap with a transparent escrow flow where test USDC is held by a smart contract and released only after the seller confirms delivery and the buyer approves payment.
 
-## Checkpoint 2 status
+## Mid-submission status
 
 The public MVP currently supports the full happy-path transaction:
 
