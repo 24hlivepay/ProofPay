@@ -57,14 +57,11 @@ export function executeCircleChallenge({ challengeId, userToken, encryptionKey }
         return;
       }
 
-      if (result?.status === "FAILED" || result?.status === "EXPIRED") {
-        reject(new Error(`Circle wallet setup ended with status: ${result.status}.`));
+      if (result?.status !== "COMPLETE") {
+        reject(new Error(`Circle wallet setup ended with status: ${result?.status || "UNKNOWN"}.`));
         return;
       }
 
-      // Circle can return IN_PROGRESS while wallet creation continues
-      // asynchronously. The caller polls the wallets endpoint until the new
-      // wallet becomes available.
       resolve(result);
     });
   });
