@@ -17,6 +17,8 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "https://proofpay.online",
+  "https://www.proofpay.online",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
