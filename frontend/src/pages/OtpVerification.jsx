@@ -53,9 +53,9 @@ export default function OtpVerification() {
 
       <Navbar />
 
-      <main className="max-w-xl mx-auto py-20 px-6">
+      <main className="mx-auto max-w-md px-5 py-12 sm:px-6">
 
-        <div className="rounded-3xl bg-white p-10 shadow">
+        <div className="rounded-2xl bg-white p-6 shadow sm:p-8">
 
           <h1 className="text-3xl font-bold">
             Verify Email

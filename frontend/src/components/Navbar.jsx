@@ -7,7 +7,7 @@ export default function Navbar() {
     <header className="border-b border-slate-100 bg-white">
       <nav
         aria-label="Main navigation"
-        className="mx-auto flex max-w-7xl items-center px-6 py-5"
+        className="mx-auto flex max-w-6xl items-center px-5 py-4 sm:px-6"
       >
         <button
           type="button"

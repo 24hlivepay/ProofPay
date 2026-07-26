@@ -144,7 +144,7 @@ export default function WaitingSeller() {
 
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 py-12">
+      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
 
         <button
           onClick={() => navigate("/dashboard/buying")}
@@ -153,13 +153,13 @@ export default function WaitingSeller() {
           ← Back to Buying Escrows
         </button>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
 
           <div className="flex items-center justify-between">
 
             <div>
 
-              <h1 className="text-4xl font-bold text-slate-900">
+              <h1 className="text-3xl font-bold text-slate-900">
                 {sellerRejected ? "Deal Rejected" : "Waiting for Seller"}
               </h1>
 
@@ -181,7 +181,7 @@ export default function WaitingSeller() {
 
           </div>          {/* Secure Link */}
 
-          <div className="mt-10 rounded-2xl border border-blue-200 bg-blue-50 p-8">
+          <div className="mt-7 rounded-xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
 
             <h2 className="text-2xl font-bold text-blue-700">
               Secure Link
@@ -249,7 +249,7 @@ export default function WaitingSeller() {
 
           {/* Escrow Summary */}
 
-          <div className="mt-10 rounded-2xl border border-slate-200 p-8">
+          <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
 
             <h2 className="mb-6 text-2xl font-bold">
               Escrow Summary
@@ -288,17 +288,17 @@ export default function WaitingSeller() {
 
           {/* Live Status */}
 
-<div className={`mt-8 rounded-3xl border p-10 text-center shadow-sm ${
+<div className={`mt-6 rounded-2xl border p-6 text-center shadow-sm ${
   sellerRejected
     ? "border-red-200 bg-gradient-to-br from-red-50 to-white"
     : "border-blue-200 bg-gradient-to-br from-blue-50 to-white"
 }`}>
 
-  <div className="text-7xl">
+  <div className="text-5xl">
     {sellerRejected ? "✖️" : "⏳"}
   </div>
 
-  <h2 className={`mt-6 text-4xl font-bold ${
+  <h2 className={`mt-4 text-3xl font-bold ${
     sellerRejected ? "text-red-700" : "text-blue-700"
   }`}>
     {sellerRejected ? "Deal Rejected by Seller" : "Waiting for Seller"}

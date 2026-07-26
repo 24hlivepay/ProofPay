@@ -16,15 +16,15 @@ export default function SellerLanding() {
 
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 py-12">
+      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
 
           <div className="flex items-center justify-between">
 
             <div>
 
-              <h1 className="text-4xl font-bold text-slate-900">
+              <h1 className="text-3xl font-bold text-slate-900">
                 Secure Escrow Invitation
               </h1>
 
@@ -42,7 +42,7 @@ export default function SellerLanding() {
 
           {/* Escrow Summary */}
 
-          <div className="mt-10 rounded-2xl border border-slate-200 p-8">
+          <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
 
             <h2 className="mb-6 text-2xl font-bold">
               Escrow Summary
