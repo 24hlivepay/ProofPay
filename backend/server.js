@@ -14,7 +14,23 @@ validateCircleConfig();
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin || "");
+
+    if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("Origin not allowed by CORS"));
+  },
+}));
 app.use(express.json());
 
 const CIRCLE_API_URL = "https://api.circle.com";
@@ -29,9 +45,10 @@ const escrows = {};
 const PENDING_ESCROW_EXPIRY_MS = 12 * 60 * 60 * 1000;
 
 
-const dataFile = path.join(process.cwd(), "data", "escrows.json");
-const walletConnectionsFile = path.join(process.cwd(), "data", "wallet-connections.json");
-console.log("JSON FILE PATH:", dataFile);
+const dataDirectory = process.env.DATA_DIR || path.join(process.cwd(), "data");
+fs.mkdirSync(dataDirectory, { recursive: true });
+const dataFile = path.join(dataDirectory, "escrows.json");
+const walletConnectionsFile = path.join(dataDirectory, "wallet-connections.json");
 
 function loadEscrows() {
 
@@ -87,17 +104,12 @@ function expirePendingEscrows(records) {
 }
 
 function saveEscrows(data) {
-  console.log("Writing to:", dataFile);
-
   try {
 
     fs.writeFileSync(
       dataFile,
       JSON.stringify(data, null, 2)
     );
-
-    console.log("✅ JSON File Saved");
-    console.log(fs.readFileSync(dataFile, "utf8"));
 
   } catch (error) {
 
@@ -263,7 +275,6 @@ app.get("/", (req, res) => {
 */
 
 app.post("/api/escrow", (req, res) => {
-  console.log("BODY:", req.body);
   const escrowId =
     "PP-" +
     Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -285,12 +296,7 @@ app.post("/api/escrow", (req, res) => {
 
   saveEscrows(allEscrows);
 
-  console.log("Saved to JSON:", allEscrows);
-
   escrows[escrowId] = escrow;
-
-
-  console.log("ESCROW:", escrow);
   res.json({
     success: true,
     escrow,
@@ -314,12 +320,7 @@ app.get("/api/escrow/:id", (req, res) => {
 
   if (escrow) {
     escrows[req.params.id] = escrow;
-    console.log("✅ Escrow Loaded From JSON");
   }
-
-
-  console.log("GET ESCROW:", req.params.id);
-  console.log(escrow);
 
   if (!escrow) {
 
@@ -755,9 +756,6 @@ app.get("/api/escrow-stats", (req, res) => {
 app.post("/api/circle/verify-email-otp", async (req, res) => {
 
   const { email, otp, otpResponse } = req.body;
-  console.log("Email:", email);
-  console.log("OTP:", otp);
-  console.log("OTP Response:", otpResponse);
 
   if (!email || !otp) {
     return res.status(400).json({
@@ -765,18 +763,10 @@ app.post("/api/circle/verify-email-otp", async (req, res) => {
       message: "Email and OTP are required",
     });
   }
-  console.log("OTP validation passed");
-  console.log("Next Step: Create or Load Wallet");
-
   const deviceToken = otpResponse.data.deviceToken;
 
-  console.log("Device Token:", deviceToken);
-
   const encryptionKey = otpResponse.data.deviceEncryptionKey;
-  console.log("Encryption Key:", encryptionKey);
   const otpToken = otpResponse.data.otpToken;
-
-  console.log("OTP Token:", otpToken);
 
   return res.json({
     success: true,
@@ -799,9 +789,9 @@ app.post("/api/circle/verify-email-otp", async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const PORT = 5001;
+const PORT = Number(process.env.PORT) || 5001;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
 
   console.log(
     `✅ ProofPay Backend Running on http://localhost:${PORT}`

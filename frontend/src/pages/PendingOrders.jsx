@@ -5,6 +5,8 @@ import api from "../services/api";
 import { getConnectedWallet } from "../services/wallet";
 import { useEscrow } from "../context/EscrowContext";
 
+const PENDING_EXPIRY_MS = 12 * 60 * 60 * 1000;
+
 export default function PendingOrders() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,6 +15,7 @@ export default function PendingOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState("");
+  const [now, setNow] = useState(Date.now());
   const role = location.state?.role === "seller" ? "seller" : "buyer";
   const isSellerRole = role === "seller";
 
@@ -34,6 +37,23 @@ export default function PendingOrders() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentTime = Date.now();
+      setNow(currentTime);
+
+      const hasExpiredOrder = orders.some(
+        (order) => getExpiryTime(order) <= currentTime
+      );
+
+      if (hasExpiredOrder) {
+        loadOrders();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [loadOrders, orders]);
 
   async function cancelOrder(order) {
     if (!window.confirm(`Cancel ${order.escrowId}? No funds have been locked yet.`)) {
@@ -119,10 +139,11 @@ export default function PendingOrders() {
                 </div>
                 <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-bold text-orange-700">{order.status}</span>
               </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Detail label={isSellerRole ? "Buyer" : "Seller"} value={isSellerRole ? order.buyerName : order.sellerName} />
                 <Detail label="Amount" value={`${order.amount} USDC`} />
                 <Detail label="Created" value={new Date(order.createdAt).toLocaleDateString()} />
+                <CountdownDetail order={order} now={now} />
               </div>
               {isSellerRole ? (
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
@@ -146,6 +167,31 @@ export default function PendingOrders() {
 
 function Detail({ label, value }) {
   return <div className="rounded-xl border border-slate-200 p-4"><p className="text-sm text-slate-500">{label}</p><p className="mt-1 break-all font-semibold text-slate-900">{value || "—"}</p></div>;
+}
+
+function CountdownDetail({ order, now }) {
+  const remaining = Math.max(0, getExpiryTime(order) - now);
+  const totalSeconds = Math.floor(remaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const countdown = [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+
+  return (
+    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+      <p className="text-sm text-orange-700">Expires in</p>
+      <p className="mt-1 font-mono text-lg font-bold text-orange-800">
+        {remaining > 0 ? countdown : "Expired"}
+      </p>
+    </div>
+  );
+}
+
+function getExpiryTime(order) {
+  return Number(order.expiresAt) ||
+    Number(order.createdAt) + PENDING_EXPIRY_MS;
 }
 
 function EmptyState({ icon, title, message }) {
