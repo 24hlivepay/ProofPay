@@ -8,6 +8,7 @@ export default function Hero() {
   const [connecting, setConnecting] = useState(false);
   const [walletStatus, setWalletStatus] = useState("");
   const [walletError, setWalletError] = useState("");
+  const [showEmailComingSoon, setShowEmailComingSoon] = useState(false);
   const [showWalletChoices, setShowWalletChoices] = useState(false);
 
   async function handleWalletConnection(walletType) {
@@ -54,7 +55,7 @@ export default function Hero() {
         <div className="mt-10 flex w-full max-w-xs flex-col gap-4">
           <button
             type="button"
-            onClick={() => navigate("/login")}
+            onClick={() => setShowEmailComingSoon(true)}
             className="w-full rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
           >
             Continue with Email
@@ -77,6 +78,42 @@ export default function Hero() {
           Choose the option that is easiest for you.
         </p>
       </div>
+
+      {showEmailComingSoon && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-5 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowEmailComingSoon(false);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl sm:p-8"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="email-coming-soon-title"
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-2xl">
+              ✉
+            </div>
+            <h2 id="email-coming-soon-title" className="mt-5 text-2xl font-bold text-slate-950">
+              Coming soon
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Email sign-in is on the way. For now, connect your wallet to use ProofPay.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowEmailComingSoon(false)}
+              className="mt-7 w-full rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {showWalletChoices && (
         <div
