@@ -6,6 +6,7 @@ import express from "express";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import pg from "pg";
 import { validateCircleConfig } from "./services/circleService.js";
 
 dotenv.config();
@@ -40,30 +41,63 @@ const circleHeaders = {
   "Content-Type": "application/json",
 };
 
-// Temporary Memory Database
 const escrows = {};
 const PENDING_ESCROW_EXPIRY_MS = 12 * 60 * 60 * 1000;
-
-
-const dataDirectory = process.env.DATA_DIR || path.join(process.cwd(), "data");
+const dataDirectory = process.env.DATA_DIR ||
+  (process.env.VERCEL
+    ? path.join("/tmp", "proofpay-data")
+    : path.join(process.cwd(), "data"));
 fs.mkdirSync(dataDirectory, { recursive: true });
 const dataFile = path.join(dataDirectory, "escrows.json");
 const walletConnectionsFile = path.join(dataDirectory, "wallet-connections.json");
+const databasePool = process.env.DATABASE_URL
+  ? new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === "production"
+        ? { rejectUnauthorized: false }
+        : undefined,
+    })
+  : null;
+let databaseReady;
 
-function loadEscrows() {
+async function ensureDatabase() {
+  if (!databasePool) return;
 
+  if (!databaseReady) {
+    databaseReady = databasePool.query(`
+      CREATE TABLE IF NOT EXISTS proofpay_records (
+        record_type TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (record_type, record_id)
+      )
+    `);
+  }
+
+  await databaseReady;
+}
+
+async function loadEscrows() {
   try {
+    let records;
 
-    if (!fs.existsSync(dataFile)) {
-
-      fs.writeFileSync(dataFile, "[]");
-
+    if (databasePool) {
+      await ensureDatabase();
+      const result = await databasePool.query(
+        "SELECT data FROM proofpay_records WHERE record_type = $1 ORDER BY updated_at ASC",
+        ["escrow"]
+      );
+      records = result.rows.map((row) => row.data);
+    } else {
+      if (!fs.existsSync(dataFile)) {
+        fs.writeFileSync(dataFile, "[]");
+      }
+      records = JSON.parse(fs.readFileSync(dataFile, "utf8"));
     }
 
-    const records = JSON.parse(fs.readFileSync(dataFile, "utf8"));
-
     if (expirePendingEscrows(records)) {
-      fs.writeFileSync(dataFile, JSON.stringify(records, null, 2));
+      await saveEscrows(records);
     }
 
     return records;
@@ -103,24 +137,50 @@ function expirePendingEscrows(records) {
   return changed;
 }
 
-function saveEscrows(data) {
+async function saveEscrows(data) {
   try {
+    if (databasePool) {
+      await ensureDatabase();
+      const client = await databasePool.connect();
 
-    fs.writeFileSync(
-      dataFile,
-      JSON.stringify(data, null, 2)
-    );
-
+      try {
+        await client.query("BEGIN");
+        for (const escrow of data) {
+          await client.query(
+            `INSERT INTO proofpay_records (record_type, record_id, data, updated_at)
+             VALUES ($1, $2, $3::jsonb, NOW())
+             ON CONFLICT (record_type, record_id)
+             DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+            ["escrow", escrow.escrowId, JSON.stringify(escrow)]
+          );
+        }
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    } else {
+      fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+    }
   } catch (error) {
-
     console.log("❌ SAVE ERROR:", error);
-
+    throw error;
   }
-
 }
 
-function loadWalletConnections() {
+async function loadWalletConnections() {
   try {
+    if (databasePool) {
+      await ensureDatabase();
+      const result = await databasePool.query(
+        "SELECT data FROM proofpay_records WHERE record_type = $1 ORDER BY updated_at ASC",
+        ["wallet_connection"]
+      );
+      return result.rows.map((row) => row.data);
+    }
+
     if (!fs.existsSync(walletConnectionsFile)) {
       fs.writeFileSync(walletConnectionsFile, "[]");
     }
@@ -132,11 +192,25 @@ function loadWalletConnections() {
   }
 }
 
-function saveWalletConnections(connections) {
+async function saveWalletConnections(connections) {
+  if (databasePool) {
+    await ensureDatabase();
+    for (const connection of connections) {
+      await databasePool.query(
+        `INSERT INTO proofpay_records (record_type, record_id, data, updated_at)
+         VALUES ($1, $2, $3::jsonb, NOW())
+         ON CONFLICT (record_type, record_id)
+         DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+        ["wallet_connection", connection.address.toLowerCase(), JSON.stringify(connection)]
+      );
+    }
+    return;
+  }
+
   fs.writeFileSync(walletConnectionsFile, JSON.stringify(connections, null, 2));
 }
 
-app.post("/api/wallet/connect", (req, res) => {
+app.post("/api/wallet/connect", async (req, res) => {
   const { address, message, signature, signedAt } = req.body;
 
   if (!address || !message || !signature || !signedAt) {
@@ -146,7 +220,7 @@ app.post("/api/wallet/connect", (req, res) => {
     });
   }
 
-  const connections = loadWalletConnections();
+  const connections = await loadWalletConnections();
   const normalizedAddress = address.toLowerCase();
   const connection = {
     address,
@@ -165,7 +239,7 @@ app.post("/api/wallet/connect", (req, res) => {
     connections.push(connection);
   }
 
-  saveWalletConnections(connections);
+  await saveWalletConnections(connections);
 
   return res.json({ success: true, address });
 });
@@ -274,7 +348,7 @@ app.get("/", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post("/api/escrow", (req, res) => {
+app.post("/api/escrow", async (req, res) => {
   const escrowId =
     "PP-" +
     Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -290,11 +364,11 @@ app.post("/api/escrow", (req, res) => {
     expiresAt: Date.now() + PENDING_ESCROW_EXPIRY_MS,
   };
 
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
 
   allEscrows.push(escrow);
 
-  saveEscrows(allEscrows);
+  await saveEscrows(allEscrows);
 
   escrows[escrowId] = escrow;
   res.json({
@@ -310,9 +384,9 @@ app.post("/api/escrow", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.get("/api/escrow/:id", (req, res) => {
+app.get("/api/escrow/:id", async (req, res) => {
 
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
 
   const escrow = allEscrows.find(
     (e) => e.escrowId === req.params.id
@@ -344,9 +418,9 @@ app.get("/api/escrow/:id", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.get("/api/escrow/:id/status", (req, res) => {
+app.get("/api/escrow/:id/status", async (req, res) => {
 
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
 
   const escrow = allEscrows.find(
     (e) => e.escrowId === req.params.id
@@ -375,11 +449,11 @@ app.get("/api/escrow/:id/status", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post("/api/escrow/:id/accept", (req, res) => {
+app.post("/api/escrow/:id/accept", async (req, res) => {
 
   const { sellerWallet } = req.body;
 
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
 
   const escrow = allEscrows.find(
     (e) => e.escrowId === req.params.id
@@ -418,7 +492,7 @@ app.post("/api/escrow/:id/accept", (req, res) => {
   // verification page reads this copy immediately after acceptance.
   escrows[req.params.id] = escrow;
 
-  saveEscrows(allEscrows);
+  await saveEscrows(allEscrows);
 
   res.json({
     success: true,
@@ -434,11 +508,11 @@ app.post("/api/escrow/:id/accept", (req, res) => {
 */
 
 
-app.post("/api/escrow/:id/deposit", (req, res) => {
+app.post("/api/escrow/:id/deposit", async (req, res) => {
 
   const { transactionHash } = req.body || {};
 
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
   const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
 
   if (!escrow) {
@@ -480,7 +554,7 @@ app.post("/api/escrow/:id/deposit", (req, res) => {
 
     allEscrows[index] = escrow;
 
-    saveEscrows(allEscrows);
+    await saveEscrows(allEscrows);
 
   }
 
@@ -499,10 +573,9 @@ app.post("/api/escrow/:id/deposit", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post("/api/escrow/:id/delivered", (req, res) => {
-  console.log("DELIVERY ENDPOINT HIT");
-
-  const escrow = escrows[req.params.id];
+app.post("/api/escrow/:id/delivered", async (req, res) => {
+  const allEscrows = await loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
 
   if (!escrow) {
     return res.status(404).json({
@@ -512,8 +585,7 @@ app.post("/api/escrow/:id/delivered", (req, res) => {
   }
 
   escrow.status = "Delivered";
-
-  const allEscrows = loadEscrows();
+  escrow.deliveredAt = Date.now();
 
   const index = allEscrows.findIndex(
     (e) => e.escrowId === escrow.escrowId
@@ -523,10 +595,9 @@ app.post("/api/escrow/:id/delivered", (req, res) => {
 
     allEscrows[index] = escrow;
 
-    saveEscrows(allEscrows);
+    await saveEscrows(allEscrows);
 
   }
-  console.log(escrow);
 
   res.json({
     success: true,
@@ -541,13 +612,12 @@ app.post("/api/escrow/:id/delivered", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post("/api/escrow/:id/release", (req, res) => {
+app.post("/api/escrow/:id/release", async (req, res) => {
 
   const { transactionHash } = req.body || {};
 
-  console.log("RELEASE ENDPOINT HIT");
-
-  const escrow = escrows[req.params.id];
+  const allEscrows = await loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
 
   if (!escrow) {
 
@@ -577,8 +647,6 @@ app.post("/api/escrow/:id/release", (req, res) => {
     escrow.releaseTransactionHash = transactionHash;
   }
 
-  const allEscrows = loadEscrows();
-
   const index = allEscrows.findIndex(
     (e) => e.escrowId === escrow.escrowId
   );
@@ -587,11 +655,9 @@ app.post("/api/escrow/:id/release", (req, res) => {
 
     allEscrows[index] = escrow;
 
-    saveEscrows(allEscrows);
+    await saveEscrows(allEscrows);
 
   }
-
-  console.log(escrow);
 
   res.json({
 
@@ -608,9 +674,9 @@ app.post("/api/escrow/:id/release", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post("/api/escrow/:id/cancel", (req, res) => {
+app.post("/api/escrow/:id/cancel", async (req, res) => {
   const { buyerWallet } = req.body;
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
   const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
 
   if (!escrow) {
@@ -645,7 +711,7 @@ app.post("/api/escrow/:id/cancel", (req, res) => {
   escrow.cancellationReason = "Cancelled by Buyer";
   escrow.cancelledAt = Date.now();
   escrows[req.params.id] = escrow;
-  saveEscrows(allEscrows);
+  await saveEscrows(allEscrows);
 
   return res.json({ success: true, escrow });
 });
@@ -656,9 +722,9 @@ app.post("/api/escrow/:id/cancel", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.post("/api/escrow/:id/reject", (req, res) => {
+app.post("/api/escrow/:id/reject", async (req, res) => {
   const { sellerWallet } = req.body;
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
   const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
 
   if (!escrow) {
@@ -677,7 +743,7 @@ app.post("/api/escrow/:id/reject", (req, res) => {
   escrow.sellerWallet = sellerWallet || escrow.sellerWallet || "";
   escrow.cancelledAt = Date.now();
   escrows[req.params.id] = escrow;
-  saveEscrows(allEscrows);
+  await saveEscrows(allEscrows);
 
   return res.json({ success: true, escrow });
 });
@@ -688,9 +754,9 @@ app.post("/api/escrow/:id/reject", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.get("/api/escrows", (req, res) => {
+app.get("/api/escrows", async (req, res) => {
 
-  const allEscrows = loadEscrows();
+  const allEscrows = await loadEscrows();
 
   const { category, buyerWallet, wallet, role } = req.query;
   const categories = {
@@ -727,8 +793,8 @@ app.get("/api/escrows", (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-app.get("/api/escrow-stats", (req, res) => {
-  const allEscrows = loadEscrows();
+app.get("/api/escrow-stats", async (req, res) => {
+  const allEscrows = await loadEscrows();
   const liveEscrows = allEscrows.filter(
     (escrow) => escrow.status === "Funds Locked" || escrow.status === "Delivered"
   );
@@ -791,10 +857,14 @@ app.post("/api/circle/verify-email-otp", async (req, res) => {
 
 const PORT = Number(process.env.PORT) || 5001;
 
-app.listen(PORT, "0.0.0.0", () => {
+if (!process.env.VERCEL) {
+  app.listen(PORT, "0.0.0.0", () => {
 
-  console.log(
-    `✅ ProofPay Backend Running on http://localhost:${PORT}`
-  );
+    console.log(
+      `✅ ProofPay Backend Running on http://localhost:${PORT}`
+    );
 
-});
+  });
+}
+
+export default app;
