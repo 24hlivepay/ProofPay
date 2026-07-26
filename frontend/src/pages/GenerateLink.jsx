@@ -15,7 +15,7 @@ export default function GenerateLink() {
   const [copied, setCopied] = useState(false);
 
   const secureLink =
-    `https://proofpay.app/escrow/${escrowData.escrowId}`;
+    `${window.location.origin}/#/escrow/${escrowData.escrowId}`;
 
   /*
   |--------------------------------------------------------------------------

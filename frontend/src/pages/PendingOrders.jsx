@@ -102,7 +102,7 @@ export default function PendingOrders() {
   async function copySellerLink(order) {
     try {
       await navigator.clipboard.writeText(
-        `${window.location.origin}/escrow/${order.escrowId}`
+        `${window.location.origin}/#/escrow/${order.escrowId}`
       );
       setCopiedId(order.escrowId);
       setTimeout(() => setCopiedId(""), 2000);
