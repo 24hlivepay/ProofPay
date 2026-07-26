@@ -65,25 +65,6 @@ export default function Hero() {
           >
             {connecting ? "Connecting..." : "Connect with Wallet"}
           </button>
-
-          {showWalletChoices && !connecting && (
-            <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-              <button
-                type="button"
-                onClick={() => handleWalletConnection("metamask")}
-                className="rounded-lg border border-slate-200 px-4 py-3 font-semibold text-slate-800 hover:border-blue-500 hover:bg-blue-50"
-              >
-                MetaMask
-              </button>
-              <button
-                type="button"
-                onClick={() => handleWalletConnection("rabby")}
-                className="rounded-lg border border-slate-200 px-4 py-3 font-semibold text-slate-800 hover:border-blue-500 hover:bg-blue-50"
-              >
-                Rabby Wallet
-              </button>
-            </div>
-          )}
         </div>
 
         {walletStatus && <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">{walletStatus}</p>}
@@ -93,6 +74,88 @@ export default function Hero() {
           Choose the option that is easiest for you.
         </p>
       </div>
+
+      {showWalletChoices && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-5 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !connecting) {
+              setShowWalletChoices(false);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-white p-6 text-left shadow-2xl sm:p-8"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="wallet-dialog-title"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="wallet-dialog-title" className="text-2xl font-bold text-slate-950">
+                  Connect a wallet
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Choose a wallet that supports Arc Testnet.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close wallet selection"
+                onClick={() => setShowWalletChoices(false)}
+                disabled={connecting}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-600 hover:bg-slate-200 disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-7 space-y-3">
+              <WalletOption
+                name="MetaMask"
+                description="Connect using the MetaMask browser extension."
+                symbol="M"
+                disabled={connecting}
+                onClick={() => handleWalletConnection("metamask")}
+              />
+              <WalletOption
+                name="Rabby Wallet"
+                description="Connect using the Rabby browser extension."
+                symbol="R"
+                disabled={connecting}
+                onClick={() => handleWalletConnection("rabby")}
+              />
+            </div>
+
+            {connecting && (
+              <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-center text-sm font-medium text-blue-700">
+                {walletStatus || "Opening your wallet..."}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function WalletOption({ name, description, symbol, disabled, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 p-4 text-left transition hover:border-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold text-white">
+        {symbol}
+      </span>
+      <span>
+        <span className="block font-bold text-slate-900">{name}</span>
+        <span className="mt-1 block text-sm text-slate-500">{description}</span>
+      </span>
+      <span className="ml-auto text-xl text-slate-400">›</span>
+    </button>
   );
 }
