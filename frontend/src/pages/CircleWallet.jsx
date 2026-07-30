@@ -421,7 +421,7 @@ export default function CircleWallet() {
                 >
                   {sendableAssets.map((asset) => (
                     <option key={asset.token.id} value={asset.token.id}>
-                      {asset.token.symbol || asset.token.name} — {asset.amount}
+                      {asset.token.symbol || asset.token.name}
                     </option>
                   ))}
                 </select>
