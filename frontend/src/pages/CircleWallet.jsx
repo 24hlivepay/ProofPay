@@ -189,8 +189,6 @@ export default function CircleWallet() {
       !["ERC721", "ERC1155"].includes(asset.token.standard) &&
       Number(asset.amount || 0) > 0
   );
-  const usdcAsset = assets.find((asset) => asset.token.symbol === "USDC");
-
   if (!address) {
     return (
       <div className="min-h-screen bg-slate-100">
@@ -224,45 +222,31 @@ export default function CircleWallet() {
           ← Back to dashboard
         </button>
 
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-6 text-white shadow-lg sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-200">
-                Circle user-controlled wallet
-              </p>
-              <p className="mt-4 text-sm text-blue-100">Available balance</p>
-              <h1 className="mt-1 text-4xl font-bold">
-                {balanceLoading
-                  ? "Loading…"
-                  : `${Number(usdcAsset?.amount || 0).toLocaleString(undefined, { maximumFractionDigits: 6 })} USDC`}
-              </h1>
-              <p className="mt-2 text-sm text-blue-100">
-                {assets.length} detected asset{assets.length === 1 ? "" : "s"}
-              </p>
-            </div>
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-4 text-white shadow-md sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="min-w-0 break-all rounded-lg bg-black/10 px-3 py-2 font-mono text-xs text-blue-50">
+              {address}
+            </p>
             <span className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold">
               Arc Testnet
             </span>
           </div>
-          <p className="mt-6 break-all rounded-xl bg-black/10 p-3 font-mono text-xs text-blue-50">
-            {address}
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
             <button
               onClick={() => openView("overview")}
-              className="rounded-xl border border-white/40 bg-white/10 px-4 py-3 font-bold text-white hover:bg-white/20"
+              className="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 font-bold text-white hover:bg-white/20"
             >
               ◫ Assets
             </button>
             <button
               onClick={() => openView("receive")}
-              className="rounded-xl bg-white px-4 py-3 font-bold text-blue-700 hover:bg-blue-50"
+              className="rounded-xl bg-white px-4 py-2.5 font-bold text-blue-700 hover:bg-blue-50"
             >
               ↓ Deposit / Receive
             </button>
             <button
               onClick={() => openView("send")}
-              className="rounded-xl border border-white/40 bg-white/10 px-4 py-3 font-bold text-white hover:bg-white/20"
+              className="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 font-bold text-white hover:bg-white/20"
             >
               ↑ Send Token
             </button>
