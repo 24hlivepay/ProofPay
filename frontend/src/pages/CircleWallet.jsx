@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import PrimaryButton from "../components/PrimaryButton";
 import { sendCircleToken } from "../services/circleTransactions";
@@ -11,9 +11,10 @@ const CIRCLE_FAUCET_URL = "https://faucet.circle.com/?allow=true";
 
 export default function CircleWallet() {
   const navigate = useNavigate();
+  const location = useLocation();
   const session = getWalletSession();
   const address = session?.walletType === "circle" ? session.address : "";
-  const [view, setView] = useState("overview");
+  const [view, setView] = useState(location.state?.view || "overview");
   const [assets, setAssets] = useState([]);
   const [activity, setActivity] = useState([]);
   const [balanceLoading, setBalanceLoading] = useState(true);
