@@ -192,6 +192,24 @@ export default function CircleWallet() {
     setTransactionHash("");
   }
 
+  function useMaximumAmount() {
+    if (!selectedAsset) return;
+
+    let maximumAmount = selectedAsset.amount;
+    if (selectedAsset.token.isNative) {
+      const decimals = Number(selectedAsset.token.decimals || 18);
+      const balanceUnits = parseUnits(selectedAsset.amount, decimals);
+      const feeReserve = parseUnits("0.01", decimals);
+      maximumAmount =
+        balanceUnits > feeReserve
+          ? formatUnits(balanceUnits - feeReserve, decimals)
+          : "0";
+    }
+
+    setAmount(maximumAmount);
+    setError("");
+  }
+
   async function handleSend(event) {
     event.preventDefault();
     const normalizedRecipient = recipient.trim();
@@ -511,7 +529,7 @@ export default function CircleWallet() {
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <h2 className="text-2xl font-bold text-slate-900">Send Token</h2>
             <p className="mt-2 text-slate-600">
-              The transfer will execute only after your Circle approval.
+              The transfer will execute only after your {walletLabel} approval.
             </p>
             <form onSubmit={handleSend} className="mt-6 space-y-5">
               <label className="block">
@@ -542,10 +560,26 @@ export default function CircleWallet() {
                   className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
                 />
               </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Amount
-                </span>
+              <div className="block">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Amount
+                  </span>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-slate-500">
+                      Balance: {selectedAsset?.amount || "0"}{" "}
+                      {selectedAsset?.token?.symbol || ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={useMaximumAmount}
+                      disabled={!selectedAsset}
+                      className="font-bold text-blue-600 hover:text-blue-700 disabled:text-slate-400"
+                    >
+                      MAX
+                    </button>
+                  </div>
+                </div>
                 <div className="relative mt-2">
                   <input
                     value={amount}
@@ -558,7 +592,7 @@ export default function CircleWallet() {
                     {selectedAsset?.token?.symbol || "TOKEN"}
                   </span>
                 </div>
-              </label>
+              </div>
               <PrimaryButton
                 type="submit"
                 disabled={submitting || balanceLoading}
