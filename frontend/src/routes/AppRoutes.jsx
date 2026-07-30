@@ -23,6 +23,7 @@ import Profile from "../pages/Profile";
 import PendingOrders from "../pages/PendingOrders";
 import CompletedOrders from "../pages/CompletedOrders";
 import CancelledOrders from "../pages/CancelledOrders";
+import CircleWallet from "../pages/CircleWallet";
 
 export default function AppRoutes() {
   return (
@@ -37,6 +38,7 @@ export default function AppRoutes() {
       <Route path="/dashboard" element={<Home />} />
       <Route path="/dashboard/buying" element={<Home />} />
       <Route path="/dashboard/selling" element={<Home />} />
+      <Route path="/wallet" element={<CircleWallet />} />
       <Route path="/create" element={<CreateEscrow />} />
       <Route path="/generate-link" element={<GenerateLink />} />
       <Route path="/waiting" element={<WaitingSeller />} />

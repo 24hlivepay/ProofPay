@@ -12,6 +12,10 @@ export default function EscrowActive() {
   const [submitting, setSubmitting] = useState(false);
   const [releaseStage, setReleaseStage] = useState("");
   const [error, setError] = useState("");
+  const walletLabel =
+    localStorage.getItem("proofpay-wallet-type") === "circle"
+      ? "Circle"
+      : "MetaMask";
   const backTo = location.state?.backTo || "/dashboard/buying";
   const backLabel = backTo === "/active-orders"
     ? "Back to Active Orders"
@@ -105,7 +109,7 @@ export default function EscrowActive() {
             {releaseStage === "confirm-wallet" && (
               <>
                 <div className="text-4xl">🔐</div>
-                <h2 className="mt-4 text-2xl font-bold text-slate-900">Confirm in MetaMask</h2>
+                <h2 className="mt-4 text-2xl font-bold text-slate-900">Confirm in {walletLabel}</h2>
                 <p className="mt-3 text-slate-600">Review and confirm the release transaction in your wallet. No funds have moved yet.</p>
               </>
             )}

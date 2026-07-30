@@ -53,12 +53,12 @@ export function executeCircleChallenge({ challengeId, userToken, encryptionKey }
     circleSdk.setAuthentication({ userToken, encryptionKey });
     circleSdk.execute(challengeId, (error, result) => {
       if (error) {
-        reject(new Error(error.message || "Circle could not create the wallet."));
+        reject(new Error(error.message || "Circle could not approve the request."));
         return;
       }
 
       if (result?.status === "FAILED" || result?.status === "EXPIRED") {
-        reject(new Error(`Circle wallet setup ended with status: ${result.status}.`));
+        reject(new Error(`Circle request ended with status: ${result.status}.`));
         return;
       }
 

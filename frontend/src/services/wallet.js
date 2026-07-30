@@ -120,6 +120,23 @@ export async function connectWalletWithOptions({
   walletType = localStorage.getItem("proofpay-wallet-type") || "metamask",
   onStatus,
 } = {}) {
+  if (walletType === "circle") {
+    const session = getWalletSession();
+    const auth = sessionStorage.getItem("proofpay-circle-auth");
+
+    if (!session?.address || !session?.walletId || !auth) {
+      throw new Error(
+        "Your Circle wallet session has expired. Sign in with email again."
+      );
+    }
+
+    return {
+      address: session.address,
+      walletId: session.walletId,
+      networkStatus: "already-connected",
+    };
+  }
+
   const wallet = WALLET_DETAILS[walletType] || WALLET_DETAILS.metamask;
   const ethereum = await getWalletProvider(walletType);
   if (!ethereum) {

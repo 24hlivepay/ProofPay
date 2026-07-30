@@ -16,6 +16,10 @@ export default function BuyerDeposit() {
   const [verified, setVerified] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const walletLabel =
+    localStorage.getItem("proofpay-wallet-type") === "circle"
+      ? "Circle wallet"
+      : "MetaMask";
   const backTo = location.state?.backTo || "/dashboard/buying";
   const backLabel = backTo === "/pending-orders"
     ? "← Back to Pending Orders"
@@ -50,7 +54,7 @@ export default function BuyerDeposit() {
 
       if (expectedBuyerWallet && connectedAddress.toLowerCase() !== expectedBuyerWallet) {
         throw new Error(
-          `Switch MetaMask to the buyer wallet (${expectedBuyerWallet.slice(0, 6)}...${expectedBuyerWallet.slice(-4)}) before depositing.`
+          `Connect the buyer ${walletLabel} (${expectedBuyerWallet.slice(0, 6)}...${expectedBuyerWallet.slice(-4)}) before depositing.`
         );
       }
 
@@ -91,7 +95,7 @@ export default function BuyerDeposit() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h1 className="text-3xl font-bold text-slate-900">Verify & Deposit</h1>
           <p className="mt-3 text-slate-600">
-            Confirm the seller’s code, then approve and lock USDC through MetaMask.
+            Confirm the seller’s code, then approve and lock USDC through your {walletLabel}.
           </p>
 
           <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
