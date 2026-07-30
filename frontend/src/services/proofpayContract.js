@@ -131,6 +131,7 @@ async function executeCircleProofPay({
   abiFunctionSignature,
   abiParameters,
   onSubmitted,
+  display,
 }) {
   try {
     return await executeCircleContract({
@@ -138,6 +139,7 @@ async function executeCircleProofPay({
       abiFunctionSignature,
       abiParameters,
       onSubmitted,
+      display,
     });
   } catch (error) {
     const message =
@@ -169,11 +171,47 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
       contractAddress: ARC_TESTNET_USDC_ADDRESS,
       abiFunctionSignature: "approve(address,uint256)",
       abiParameters: [PROOFPAY_ESCROW_ADDRESS, amountUnits.toString()],
+      display: {
+        title: "Approve USDC",
+        subtitle: `Step 1 of 2 • Allow ProofPay to use funds for escrow ${escrowId}.`,
+        amount: String(amount),
+        symbol: "USDC",
+        from: walletAddress,
+        contractLabel: "Permission for",
+        contractName: "Verified ProofPay Escrow",
+        totalLabel: "Approval limit",
+        confirmLabel: `Approve ${amount} USDC`,
+        action: "Approve escrow funding",
+        details: [
+          `Escrow ID: ${escrowId}`,
+          `Seller: ${sellerAddress}`,
+          "Network: Arc Testnet",
+          "Access: Exact amount only",
+        ],
+      },
     });
     const transaction = await executeCircleProofPay({
       contractAddress: PROOFPAY_ESCROW_ADDRESS,
       abiFunctionSignature: "createEscrow(string,address,uint256)",
       abiParameters: [escrowId, sellerAddress, amountUnits.toString()],
+      display: {
+        title: "Lock Escrow Funds",
+        subtitle: `Step 2 of 2 • Lock ${amount} USDC until delivery is confirmed.`,
+        amount: String(amount),
+        symbol: "USDC",
+        from: walletAddress,
+        contractLabel: "Funds destination",
+        contractName: "Verified ProofPay Escrow",
+        totalLabel: "Amount to lock",
+        confirmLabel: `Lock ${amount} USDC`,
+        action: "Lock funds in escrow",
+        details: [
+          `Escrow ID: ${escrowId}`,
+          `Seller: ${sellerAddress}`,
+          "Network: Arc Testnet",
+          "Protection: Release after delivery",
+        ],
+      },
     });
 
     return { hash: transaction.hash };
@@ -263,11 +301,41 @@ export async function confirmDeliveryOnChain(escrowId) {
 
 export async function releaseFundsOnChain(escrowId, onSubmitted) {
   if (isCircleWallet()) {
+    const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
+    const readOnlyEscrow = new Contract(
+      PROOFPAY_ESCROW_ADDRESS,
+      ESCROW_ABI,
+      provider
+    );
+    const onChainEscrow = await readOnlyEscrow.getEscrow(escrowId);
+    const releaseAmount = formatUnits(onChainEscrow.amount, USDC_DECIMALS);
+    const sellerAddress = onChainEscrow.seller;
+    const walletAddress = localStorage.getItem("proofpay-wallet");
     const transaction = await executeCircleProofPay({
       contractAddress: PROOFPAY_ESCROW_ADDRESS,
       abiFunctionSignature: "releaseFunds(string)",
       abiParameters: [escrowId],
       onSubmitted,
+      display: {
+        title: "Release Payment",
+        subtitle:
+          "Delivery confirmed • Send the escrowed funds to the seller.",
+        amount: releaseAmount,
+        symbol: "USDC",
+        from: walletAddress,
+        contractLabel: "Verified contract",
+        contractName: "ProofPay Escrow",
+        totalLabel: "Payment to release",
+        confirmLabel: `Release ${releaseAmount} USDC`,
+        action: "Release escrow payment",
+        details: [
+          `Escrow ID: ${escrowId}`,
+          `Recipient: ${sellerAddress}`,
+          "Network: Arc Testnet",
+          "Status: Delivery confirmed",
+          "Warning: This action cannot be reversed",
+        ],
+      },
     });
     return transaction.hash;
   }
