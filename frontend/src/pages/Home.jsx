@@ -13,6 +13,7 @@ import api from "../services/api";
 const EMPTY_COUNTS = { pending: 0, active: 0, completed: 0, cancelled: 0 };
 const EMPTY_STATS = { lockedUsdc: 0, liveEscrows: 0, activeBuyers: 0, activeSellers: 0 };
 const CONTRACT_STATS_TIMEOUT_MS = 3500;
+const CIRCLE_FAUCET_URL = "https://faucet.circle.com/?allow=true";
 
 function withTimeout(promise, timeoutMs) {
   return Promise.race([
@@ -281,16 +282,14 @@ export default function Home() {
                 : handleConnectWallet({ requestAccountSelection: true })
             )}
             onDisconnectWallet={handleDisconnectWallet}
+            onFaucetClick={() => window.open(CIRCLE_FAUCET_URL, "_blank", "noopener,noreferrer")}
           />
         )}
 
         {!mode && (
-          <section className={`mx-auto mt-7 grid gap-4 ${isCircleWallet ? "max-w-5xl md:grid-cols-2 xl:grid-cols-4" : "max-w-2xl md:grid-cols-2"}`}>
+          <section className={`mx-auto mt-7 grid gap-4 ${isCircleWallet ? "max-w-5xl md:grid-cols-3" : "max-w-2xl md:grid-cols-2"}`}>
             {isCircleWallet && (
-              <>
-                <WorkspaceCard icon="💳" title="My Wallet" description="View balances, receive, and send supported Arc Testnet tokens." onClick={() => navigate("/wallet")} />
-                <WorkspaceCard icon="💧" title="Get Test Tokens" description="Copy your address and open the Circle Faucet to fund this wallet." onClick={() => navigate("/wallet", { state: { view: "receive" } })} />
-              </>
+              <WorkspaceCard icon="💳" title="My Wallet" description="View balances, receive, and send supported Arc Testnet tokens." onClick={() => navigate("/wallet")} />
             )}
             <WorkspaceCard icon="🛒" title="Buying Escrows" description="Create a secure escrow, deposit USDC, and release payment after delivery." onClick={() => navigate("/dashboard/buying")} />
             <WorkspaceCard icon="🏪" title="Selling Escrows" description="See accepted sales, confirm delivery, and track payments received." onClick={() => navigate("/dashboard/selling")} />
@@ -335,6 +334,7 @@ function LiveEscrowOverview({
   onWalletClick,
   onChangeWallet,
   onDisconnectWallet,
+  onFaucetClick,
 }) {
   const hasStats = Boolean(stats);
   const lockedAmount = Number(stats?.lockedUsdc || 0).toLocaleString(undefined, {
@@ -350,11 +350,14 @@ function LiveEscrowOverview({
           <h2 className="mt-2 text-xl font-bold sm:text-2xl">Protected by smart-contract escrow</h2>
           <p className="mt-2 max-w-2xl text-sm text-blue-100 sm:text-base">Live values read directly from the deployed Arc Testnet escrow contract.</p>
         </div>
-        <div className="relative flex flex-col items-end gap-3">
+        <div className="relative grid w-56 grid-cols-1 gap-3">
           <button onClick={onWalletClick} className="h-12 w-56 rounded-xl bg-white px-4 text-center text-[17px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
             {shortWallet ? `Wallet: ${shortWallet}` : "Connect Wallet"}
           </button>
           <div className="flex h-12 w-56 items-center justify-center rounded-xl bg-white px-4 text-center text-[17px] font-semibold text-blue-700 shadow-sm">Network: {networkName}</div>
+          <button onClick={onFaucetClick} className="h-12 w-56 rounded-xl bg-white px-4 text-center text-[17px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
+            Faucet
+          </button>
 
           {walletMenuOpen && (
             <div className="absolute right-0 top-12 z-10 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-xl">
