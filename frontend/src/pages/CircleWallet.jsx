@@ -3,7 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import PrimaryButton from "../components/PrimaryButton";
 import { sendCircleToken } from "../services/circleTransactions";
-import { getWalletSession } from "../services/wallet";
+import {
+  connectWallet,
+  getConnectedWallet,
+  getWalletSession,
+} from "../services/wallet";
+import { formatUnits, parseUnits } from "ethers";
 import api from "../services/api";
 
 const ARC_EXPLORER_TX_URL = "https://testnet.arcscan.app/tx/";
@@ -13,7 +18,17 @@ export default function CircleWallet() {
   const navigate = useNavigate();
   const location = useLocation();
   const session = getWalletSession();
-  const address = session?.walletType === "circle" ? session.address : "";
+  const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
+  const isCircleWallet = walletType === "circle";
+  const address = isCircleWallet
+    ? session?.address || ""
+    : session?.address || getConnectedWallet() || "";
+  const walletLabel =
+    walletType === "rabby"
+      ? "Rabby Wallet"
+      : isCircleWallet
+        ? "Circle Wallet"
+        : "MetaMask";
   const [view, setView] = useState(location.state?.view || "overview");
   const [assets, setAssets] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -28,10 +43,32 @@ export default function CircleWallet() {
   const [copied, setCopied] = useState(false);
 
   const loadBalance = useCallback(async () => {
-    if (!address || !session?.walletId) return;
+    if (!address) return;
 
     try {
       setBalanceLoading(true);
+      if (!isCircleWallet) {
+        const { provider } = await connectWallet();
+        const nativeBalance = await provider.getBalance(address);
+        const nextAssets = [{
+          token: {
+            id: "arc-native-usdc",
+            symbol: "USDC",
+            name: "Arc Testnet native USDC",
+            decimals: 18,
+            isNative: true,
+            standard: "NATIVE",
+          },
+          amount: formatUnits(nativeBalance, 18),
+        }];
+        setAssets(nextAssets);
+        setActivity([]);
+        setSelectedTokenId("arc-native-usdc");
+        setError("");
+        return;
+      }
+
+      if (!session?.walletId) return;
       const auth = JSON.parse(
         sessionStorage.getItem("proofpay-circle-auth") || "null"
       );
@@ -99,7 +136,7 @@ export default function CircleWallet() {
     } finally {
       setBalanceLoading(false);
     }
-  }, [address, session?.walletId]);
+  }, [address, isCircleWallet, session?.walletId]);
 
   useEffect(() => {
     const timeout = window.setTimeout(loadBalance, 0);
@@ -153,16 +190,30 @@ export default function CircleWallet() {
       setSubmitting(true);
       setError("");
       setTransactionHash("");
-      setStatus("Approve this transfer in Circle’s secure window.");
-      const transaction = await sendCircleToken({
-        destinationAddress: normalizedRecipient,
-        amount: normalizedAmount,
-        tokenId: selectedAsset.token.id,
-        onSubmitted: () => {
-          setStatus("Transfer approved. Waiting for Arc confirmation...");
-        },
-      });
-      setTransactionHash(transaction.hash);
+      let transactionHash;
+      if (isCircleWallet) {
+        setStatus("Approve this transfer in Circle’s secure window.");
+        const transaction = await sendCircleToken({
+          destinationAddress: normalizedRecipient,
+          amount: normalizedAmount,
+          tokenId: selectedAsset.token.id,
+          onSubmitted: () => {
+            setStatus("Transfer approved. Waiting for Arc confirmation...");
+          },
+        });
+        transactionHash = transaction.hash;
+      } else {
+        setStatus(`Approve this transfer in ${walletLabel}.`);
+        const { signer } = await connectWallet();
+        const transaction = await signer.sendTransaction({
+          to: normalizedRecipient,
+          value: parseUnits(normalizedAmount, 18),
+        });
+        setStatus("Transfer submitted. Waiting for Arc confirmation...");
+        const receipt = await transaction.wait();
+        transactionHash = receipt.hash;
+      }
+      setTransactionHash(transactionHash);
       setStatus(
         `${normalizedAmount} ${selectedAsset.token.symbol} sent successfully.`
       );
@@ -202,15 +253,15 @@ export default function CircleWallet() {
         <Navbar />
         <main className="mx-auto max-w-xl px-5 py-12 text-center">
           <div className="rounded-2xl bg-white p-8 shadow-sm">
-            <h1 className="text-2xl font-bold">Circle wallet required</h1>
+            <h1 className="text-2xl font-bold">Wallet connection required</h1>
             <p className="mt-3 text-slate-600">
-              Sign in with email to open your user-controlled wallet.
+              Connect your wallet to open the ProofPay wallet workspace.
             </p>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/")}
               className="mt-6 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
             >
-              Sign in with Circle
+              Connect wallet
             </button>
           </div>
         </main>
