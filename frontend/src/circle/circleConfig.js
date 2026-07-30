@@ -86,7 +86,7 @@ export function executeCircleChallenge({
             amount: display.amount,
             symbol: display.symbol,
           },
-          fromLabel: "From wallet",
+          fromLabel: display.fromLabel || "From wallet",
           from: display.from,
           contractAddressLabel: display.contractLabel,
           contractInfo: [display.contractName],
