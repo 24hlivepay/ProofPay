@@ -115,9 +115,22 @@ export default function BuyerDeposit() {
             <h2 className="text-2xl font-bold text-blue-700">Seller Verification</h2>
             <p className="mt-3 text-slate-700">Enter the code supplied by the seller.</p>
             <div className="mt-6">
-              <InputField placeholder="Enter 6-digit verification code" value={code} onChange={(event) => setCode(event.target.value)} />
-              <button onClick={verifyCode} className="mt-6 w-full rounded-xl border border-blue-600 py-4 font-semibold text-blue-600 transition hover:bg-blue-600 hover:text-white">
-                Verify Seller
+              <InputField
+                placeholder="Enter 6-digit verification code"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                disabled={verified}
+              />
+              <button
+                onClick={verifyCode}
+                disabled={verified}
+                className={`mt-6 w-full rounded-xl border py-4 font-semibold transition ${
+                  verified
+                    ? "cursor-not-allowed border-green-300 bg-green-100 text-green-700"
+                    : "border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                }`}
+              >
+                {verified ? "✓ Seller Verified" : "Verify Seller"}
               </button>
             </div>
           </div>
