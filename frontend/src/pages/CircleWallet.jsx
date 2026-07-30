@@ -8,11 +8,31 @@ import {
   getConnectedWallet,
   getWalletSession,
 } from "../services/wallet";
-import { formatUnits, parseUnits } from "ethers";
+import { Contract, formatUnits, parseUnits } from "ethers";
 import api from "../services/api";
 
 const ARC_EXPLORER_TX_URL = "https://testnet.arcscan.app/tx/";
 const CIRCLE_FAUCET_URL = "https://faucet.circle.com/?allow=true";
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+];
+const ARC_TESTNET_TOKENS = [
+  {
+    id: "arc-eurc",
+    symbol: "EURC",
+    name: "EURC",
+    tokenAddress: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+    decimals: 6,
+  },
+  {
+    id: "arc-cirbtc",
+    symbol: "cirBTC",
+    name: "Circle Wrapped Bitcoin",
+    tokenAddress: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF",
+    decimals: 8,
+  },
+];
 
 export default function CircleWallet() {
   const navigate = useNavigate();
@@ -49,7 +69,12 @@ export default function CircleWallet() {
       setBalanceLoading(true);
       if (!isCircleWallet) {
         const { provider } = await connectWallet();
-        const nativeBalance = await provider.getBalance(address);
+        const [nativeBalance, ...tokenBalances] = await Promise.all([
+          provider.getBalance(address),
+          ...ARC_TESTNET_TOKENS.map((token) =>
+            new Contract(token.tokenAddress, ERC20_ABI, provider).balanceOf(address)
+          ),
+        ]);
         const nextAssets = [{
           token: {
             id: "arc-native-usdc",
@@ -60,10 +85,21 @@ export default function CircleWallet() {
             standard: "NATIVE",
           },
           amount: formatUnits(nativeBalance, 18),
-        }];
+        }, ...ARC_TESTNET_TOKENS.map((token, index) => ({
+          token: {
+            ...token,
+            isNative: false,
+            standard: "ERC20",
+          },
+          amount: formatUnits(tokenBalances[index], token.decimals),
+        }))].filter((asset) => Number(asset.amount || 0) > 0);
         setAssets(nextAssets);
         setActivity([]);
-        setSelectedTokenId("arc-native-usdc");
+        setSelectedTokenId((current) =>
+          nextAssets.some((asset) => asset.token.id === current)
+            ? current
+            : nextAssets[0]?.token.id || ""
+        );
         setError("");
         return;
       }
@@ -205,10 +241,20 @@ export default function CircleWallet() {
       } else {
         setStatus(`Approve this transfer in ${walletLabel}.`);
         const { signer } = await connectWallet();
-        const transaction = await signer.sendTransaction({
-          to: normalizedRecipient,
-          value: parseUnits(normalizedAmount, 18),
-        });
+        const amountUnits = parseUnits(
+          normalizedAmount,
+          selectedAsset.token.decimals
+        );
+        const transaction = selectedAsset.token.isNative
+          ? await signer.sendTransaction({
+              to: normalizedRecipient,
+              value: amountUnits,
+            })
+          : await new Contract(
+              selectedAsset.token.tokenAddress,
+              ERC20_ABI,
+              signer
+            ).transfer(normalizedRecipient, amountUnits);
         setStatus("Transfer submitted. Waiting for Arc confirmation...");
         const receipt = await transaction.wait();
         transactionHash = receipt.hash;
