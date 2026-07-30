@@ -42,6 +42,7 @@ const USDC_ABI = [
 ];
 
 const escrowInterface = new Interface(ESCROW_ABI);
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 function technicalError(error) {
   return (
@@ -113,6 +114,7 @@ async function getContracts() {
 
   return {
     address: wallet.address,
+    provider: wallet.provider,
     escrow: new Contract(PROOFPAY_ESCROW_ADDRESS, ESCROW_ABI, wallet.signer),
     usdc: new Contract(ARC_TESTNET_USDC_ADDRESS, USDC_ABI, wallet.signer),
   };
@@ -124,6 +126,66 @@ function getUsdcAmount(amount) {
 
 function isCircleWallet() {
   return localStorage.getItem("proofpay-wallet-type") === "circle";
+}
+
+async function recoverExistingEscrow({
+  escrowId,
+  buyerAddress,
+  sellerAddress,
+  amountUnits,
+  provider: connectedProvider,
+}) {
+  const provider =
+    connectedProvider || new JsonRpcProvider(ARC_TESTNET_RPC_URL);
+  const escrow = new Contract(PROOFPAY_ESCROW_ADDRESS, ESCROW_ABI, provider);
+  const existing = await escrow.getEscrow(escrowId);
+
+  if (existing.buyer.toLowerCase() === ZERO_ADDRESS) {
+    return null;
+  }
+
+  const matchesRequest =
+    existing.buyer.toLowerCase() === buyerAddress.toLowerCase() &&
+    existing.seller.toLowerCase() === sellerAddress.toLowerCase() &&
+    existing.amount === amountUnits;
+
+  if (!matchesRequest) {
+    throw new Error(
+      "This escrow ID already exists on-chain with different payment details. Please create a new escrow."
+    );
+  }
+
+  const latestBlock = await provider.getBlockNumber();
+  const topics = escrowInterface.encodeFilterTopics("EscrowCreated", [
+    escrowId,
+    buyerAddress,
+    sellerAddress,
+  ]);
+
+  for (
+    let toBlock = latestBlock;
+    toBlock >= PROOFPAY_DEPLOYMENT_BLOCK;
+    toBlock -= ARC_LOG_BLOCK_WINDOW
+  ) {
+    const fromBlock = Math.max(
+      PROOFPAY_DEPLOYMENT_BLOCK,
+      toBlock - ARC_LOG_BLOCK_WINDOW + 1
+    );
+    const logs = await provider.getLogs({
+      address: PROOFPAY_ESCROW_ADDRESS,
+      topics,
+      fromBlock,
+      toBlock,
+    });
+
+    if (logs[0]?.transactionHash) {
+      return { hash: logs[0].transactionHash, recovered: true };
+    }
+  }
+
+  throw new Error(
+    "The USDC is already locked on-chain, but ProofPay could not locate its deposit transaction. Please contact support with the escrow ID."
+  );
 }
 
 async function executeCircleProofPay({
@@ -157,6 +219,14 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
   if (isCircleWallet()) {
     const walletAddress = localStorage.getItem("proofpay-wallet");
     const amountUnits = getUsdcAmount(amount);
+    const recovered = await recoverExistingEscrow({
+      escrowId,
+      buyerAddress: walletAddress,
+      sellerAddress,
+      amountUnits,
+    });
+    if (recovered) return recovered;
+
     const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
     const usdc = new Contract(ARC_TESTNET_USDC_ADDRESS, USDC_ABI, provider);
     const balance = await usdc.balanceOf(walletAddress);
@@ -224,8 +294,17 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
   }
 
   try {
-    const { address, escrow, usdc } = await getContracts();
+    const { address, provider, escrow, usdc } = await getContracts();
     const amountUnits = getUsdcAmount(amount);
+    const recovered = await recoverExistingEscrow({
+      escrowId,
+      buyerAddress: address,
+      sellerAddress,
+      amountUnits,
+      provider,
+    });
+    if (recovered) return recovered;
+
     let balance;
 
     try {
