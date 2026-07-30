@@ -17,6 +17,7 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "https://proofpay.online",
   "https://www.proofpay.online",
   process.env.FRONTEND_URL,
@@ -358,6 +359,298 @@ app.get("/api/circle/wallets", async (req, res) => {
     return res.status(error.response?.status || 500).json({
       success: false,
       message: error.response?.data?.message || "Circle could not load the wallet.",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+const PROOFPAY_ESCROW_ADDRESS =
+  "0xCd0f43E573899809ff96C560439570A760698C9a";
+const ARC_TESTNET_USDC_ADDRESS =
+  "0x3600000000000000000000000000000000000000";
+const CIRCLE_CONTRACT_ALLOWLIST = new Map([
+  [
+    PROOFPAY_ESCROW_ADDRESS.toLowerCase(),
+    new Set([
+      "createEscrow(string,address,uint256)",
+      "confirmDelivery(string)",
+      "releaseFunds(string)",
+      "refund(string)",
+    ]),
+  ],
+  [
+    ARC_TESTNET_USDC_ADDRESS.toLowerCase(),
+    new Set(["approve(address,uint256)"]),
+  ],
+]);
+
+function getCircleUserToken(req, res) {
+  const userToken = req.get("X-User-Token");
+
+  if (!userToken) {
+    res.status(400).json({
+      success: false,
+      message: "User token is required.",
+    });
+    return null;
+  }
+
+  return userToken;
+}
+
+app.post("/api/circle/contract-execution", async (req, res) => {
+  const userToken = getCircleUserToken(req, res);
+  if (!userToken) return;
+
+  const walletId = String(req.body.walletId || "").trim();
+  const contractAddress = String(req.body.contractAddress || "").trim();
+  const abiFunctionSignature = String(
+    req.body.abiFunctionSignature || ""
+  ).trim();
+  const abiParameters = req.body.abiParameters;
+  const allowedFunctions = CIRCLE_CONTRACT_ALLOWLIST.get(
+    contractAddress.toLowerCase()
+  );
+
+  if (
+    !walletId ||
+    !/^0x[a-fA-F0-9]{40}$/.test(contractAddress) ||
+    !allowedFunctions?.has(abiFunctionSignature) ||
+    !Array.isArray(abiParameters)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "This Circle contract operation is not allowed.",
+    });
+  }
+
+  try {
+    const response = await axios.post(
+      `${CIRCLE_API_URL}/v1/w3s/user/transactions/contractExecution`,
+      {
+        idempotencyKey: crypto.randomUUID(),
+        walletId,
+        contractAddress,
+        abiFunctionSignature,
+        abiParameters,
+        feeLevel: "MEDIUM",
+      },
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+      }
+    );
+
+    return res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Circle contract execution error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Circle could not prepare the contract transaction.",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/circle/transfer", async (req, res) => {
+  const userToken = getCircleUserToken(req, res);
+  if (!userToken) return;
+
+  const walletId = String(req.body.walletId || "").trim();
+  const destinationAddress = String(
+    req.body.destinationAddress || ""
+  ).trim();
+  const amount = String(req.body.amount || "").trim();
+  const tokenId = String(req.body.tokenId || "").trim();
+
+  if (
+    !walletId ||
+    !/^[a-fA-F0-9-]{36}$/.test(tokenId) ||
+    !/^0x[a-fA-F0-9]{40}$/.test(destinationAddress) ||
+    !/^\d+(\.\d{1,6})?$/.test(amount) ||
+    Number(amount) <= 0
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid Arc address and USDC amount.",
+    });
+  }
+
+  try {
+    const response = await axios.post(
+      `${CIRCLE_API_URL}/v1/w3s/user/transactions/transfer`,
+      {
+        idempotencyKey: crypto.randomUUID(),
+        walletId,
+        destinationAddress,
+        amounts: [amount],
+        tokenId,
+        feeLevel: "MEDIUM",
+      },
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+      }
+    );
+
+    return res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Circle transfer error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Circle could not prepare the USDC transfer.",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/circle/wallets/:walletId/balances", async (req, res) => {
+  const userToken = getCircleUserToken(req, res);
+  if (!userToken) return;
+
+  try {
+    const response = await axios.get(
+      `${CIRCLE_API_URL}/v1/w3s/wallets/${encodeURIComponent(
+        req.params.walletId
+      )}/balances`,
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+        params: {
+          includeAll: true,
+          pageSize: 50,
+        },
+      }
+    );
+    return res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Circle wallet balances error:",
+      error.response?.data || error.message
+    );
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Circle could not load wallet balances.",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/circle/transactions", async (req, res) => {
+  const userToken = getCircleUserToken(req, res);
+  if (!userToken) return;
+
+  const walletId = String(req.query.walletId || "").trim();
+  if (!walletId) {
+    return res.status(400).json({
+      success: false,
+      message: "Wallet ID is required.",
+    });
+  }
+
+  try {
+    const response = await axios.get(
+      `${CIRCLE_API_URL}/v1/w3s/transactions`,
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+        params: {
+          walletIds: walletId,
+          includeAll: true,
+          pageSize: 20,
+          order: "DESC",
+        },
+      }
+    );
+    return res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Circle wallet activity error:",
+      error.response?.data || error.message
+    );
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Circle could not load wallet activity.",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/circle/challenges/:challengeId", async (req, res) => {
+  const userToken = getCircleUserToken(req, res);
+  if (!userToken) return;
+
+  try {
+    const response = await axios.get(
+      `${CIRCLE_API_URL}/v1/w3s/user/challenges/${encodeURIComponent(
+        req.params.challengeId
+      )}`,
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+      }
+    );
+    return res.json(response.data);
+  } catch (error) {
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Circle could not load the transaction challenge.",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/circle/transactions/:transactionId", async (req, res) => {
+  const userToken = getCircleUserToken(req, res);
+  if (!userToken) return;
+
+  try {
+    const response = await axios.get(
+      `${CIRCLE_API_URL}/v1/w3s/transactions/${encodeURIComponent(
+        req.params.transactionId
+      )}`,
+      {
+        headers: {
+          ...circleHeaders,
+          "X-User-Token": userToken,
+        },
+      }
+    );
+    return res.json(response.data);
+  } catch (error) {
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Circle could not load the transaction.",
       error: error.response?.data || error.message,
     });
   }

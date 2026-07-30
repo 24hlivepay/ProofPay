@@ -1,5 +1,6 @@
 import { Contract, formatUnits, Interface, JsonRpcProvider, parseUnits } from "ethers";
 import { connectWallet } from "./wallet";
+import { executeCircleContract } from "./circleTransactions";
 
 export const PROOFPAY_ESCROW_ADDRESS =
   "0xCd0f43E573899809ff96C560439570A760698C9a";
@@ -121,7 +122,63 @@ function getUsdcAmount(amount) {
   return parseUnits(String(amount), USDC_DECIMALS);
 }
 
+function isCircleWallet() {
+  return localStorage.getItem("proofpay-wallet-type") === "circle";
+}
+
+async function executeCircleProofPay({
+  contractAddress,
+  abiFunctionSignature,
+  abiParameters,
+  onSubmitted,
+}) {
+  try {
+    return await executeCircleContract({
+      contractAddress,
+      abiFunctionSignature,
+      abiParameters,
+      onSubmitted,
+    });
+  } catch (error) {
+    const message =
+      error.response?.data?.message ||
+      error.response?.data?.error?.message ||
+      error.message;
+    throw new Error(
+      message || "Circle could not complete the transaction.",
+      { cause: error }
+    );
+  }
+}
+
 export async function fundEscrow({ escrowId, sellerAddress, amount }) {
+  if (isCircleWallet()) {
+    const walletAddress = localStorage.getItem("proofpay-wallet");
+    const amountUnits = getUsdcAmount(amount);
+    const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
+    const usdc = new Contract(ARC_TESTNET_USDC_ADDRESS, USDC_ABI, provider);
+    const balance = await usdc.balanceOf(walletAddress);
+
+    if (balance < amountUnits + NETWORK_FEE_RESERVE) {
+      throw new Error(
+        `Buyer wallet has ${formatUnits(balance, USDC_DECIMALS)} USDC. This escrow needs ${amount} USDC plus a small Arc network fee.`
+      );
+    }
+
+    await executeCircleProofPay({
+      contractAddress: ARC_TESTNET_USDC_ADDRESS,
+      abiFunctionSignature: "approve(address,uint256)",
+      abiParameters: [PROOFPAY_ESCROW_ADDRESS, amountUnits.toString()],
+    });
+    const transaction = await executeCircleProofPay({
+      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      abiFunctionSignature: "createEscrow(string,address,uint256)",
+      abiParameters: [escrowId, sellerAddress, amountUnits.toString()],
+    });
+
+    return { hash: transaction.hash };
+  }
+
   try {
     const { address, escrow, usdc } = await getContracts();
     const amountUnits = getUsdcAmount(amount);
@@ -183,6 +240,15 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
 }
 
 export async function confirmDeliveryOnChain(escrowId) {
+  if (isCircleWallet()) {
+    const transaction = await executeCircleProofPay({
+      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      abiFunctionSignature: "confirmDelivery(string)",
+      abiParameters: [escrowId],
+    });
+    return transaction.hash;
+  }
+
   try {
     const { escrow } = await getContracts();
     const transaction = await escrow.confirmDelivery(escrowId, {
@@ -196,6 +262,16 @@ export async function confirmDeliveryOnChain(escrowId) {
 }
 
 export async function releaseFundsOnChain(escrowId, onSubmitted) {
+  if (isCircleWallet()) {
+    const transaction = await executeCircleProofPay({
+      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      abiFunctionSignature: "releaseFunds(string)",
+      abiParameters: [escrowId],
+      onSubmitted,
+    });
+    return transaction.hash;
+  }
+
   try {
     const { escrow } = await getContracts();
     const transaction = await escrow.releaseFunds(escrowId, {
@@ -210,6 +286,15 @@ export async function releaseFundsOnChain(escrowId, onSubmitted) {
 }
 
 export async function refundOnChain(escrowId) {
+  if (isCircleWallet()) {
+    const transaction = await executeCircleProofPay({
+      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      abiFunctionSignature: "refund(string)",
+      abiParameters: [escrowId],
+    });
+    return transaction.hash;
+  }
+
   try {
     const { escrow } = await getContracts();
     const transaction = await escrow.refund(escrowId);

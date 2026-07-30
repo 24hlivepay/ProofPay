@@ -285,7 +285,10 @@ export default function Home() {
         )}
 
         {!mode && (
-          <section className="mx-auto mt-7 grid max-w-2xl gap-4 md:grid-cols-2">
+          <section className={`mx-auto mt-7 grid gap-4 ${isCircleWallet ? "max-w-4xl md:grid-cols-3" : "max-w-2xl md:grid-cols-2"}`}>
+            {isCircleWallet && (
+              <WorkspaceCard icon="💳" title="My Wallet" description="View balances, receive, and send supported Arc Testnet tokens." onClick={() => navigate("/wallet")} />
+            )}
             <WorkspaceCard icon="🛒" title="Buying Escrows" description="Create a secure escrow, deposit USDC, and release payment after delivery." onClick={() => navigate("/dashboard/buying")} />
             <WorkspaceCard icon="🏪" title="Selling Escrows" description="See accepted sales, confirm delivery, and track payments received." onClick={() => navigate("/dashboard/selling")} />
           </section>
