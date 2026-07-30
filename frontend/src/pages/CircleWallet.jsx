@@ -299,6 +299,12 @@ export default function CircleWallet() {
   const selectedAsset = assets.find(
     (asset) => asset.token.id === selectedTokenId
   );
+  const displayedSelectedBalance = Number(
+    selectedAsset?.amount || 0
+  ).toLocaleString(undefined, {
+    maximumFractionDigits:
+      selectedAsset?.token?.symbol === "cirBTC" ? 8 : 4,
+  });
   const sendableAssets = assets.filter(
     (asset) =>
       !["ERC721", "ERC1155"].includes(asset.token.standard) &&
@@ -567,7 +573,7 @@ export default function CircleWallet() {
                   </span>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-slate-500">
-                      Balance: {selectedAsset?.amount || "0"}{" "}
+                      Balance: {displayedSelectedBalance}{" "}
                       {selectedAsset?.token?.symbol || ""}
                     </span>
                     <button
