@@ -189,6 +189,13 @@ export default function CircleWallet() {
       !["ERC721", "ERC1155"].includes(asset.token.standard) &&
       Number(asset.amount || 0) > 0
   );
+  const walletTabClass = (tab) =>
+    `rounded-xl px-4 py-2.5 font-bold transition ${
+      view === tab
+        ? "bg-white text-blue-700 hover:bg-blue-50"
+        : "border border-white/40 bg-white/10 text-white hover:bg-white/20"
+    }`;
+
   if (!address) {
     return (
       <div className="min-h-screen bg-slate-100">
@@ -234,19 +241,19 @@ export default function CircleWallet() {
           <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
             <button
               onClick={() => openView("overview")}
-              className="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 font-bold text-white hover:bg-white/20"
+              className={walletTabClass("overview")}
             >
               ◫ Assets
             </button>
             <button
               onClick={() => openView("receive")}
-              className="rounded-xl bg-white px-4 py-2.5 font-bold text-blue-700 hover:bg-blue-50"
+              className={walletTabClass("receive")}
             >
               ↓ Deposit / Receive
             </button>
             <button
               onClick={() => openView("send")}
-              className="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 font-bold text-white hover:bg-white/20"
+              className={walletTabClass("send")}
             >
               ↑ Send Token
             </button>
