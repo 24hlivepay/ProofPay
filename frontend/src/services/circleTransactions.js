@@ -88,6 +88,7 @@ export async function executeCircleContract({
   abiFunctionSignature,
   abiParameters,
   onSubmitted,
+  display,
 }) {
   const { auth, wallet } = getCircleSession();
   const response = await api.post(
@@ -112,6 +113,7 @@ export async function executeCircleContract({
     challengeId,
     userToken: auth.userToken,
     encryptionKey: auth.encryptionKey,
+    display,
   });
 
   const transactionId = await getTransactionId(challengeId, auth.userToken);

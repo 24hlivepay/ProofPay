@@ -12,6 +12,24 @@ export const circleSdk = new W3SSdk({
   },
 });
 
+circleSdk.setThemeColor({
+  backdrop: "#0f172a",
+  backdropOpacity: 0.68,
+  bg: "#ffffff",
+  divider: "#dbeafe",
+  success: "#16a34a",
+  error: "#dc2626",
+  textMain: "#0f172a",
+  textMain2: "#1e3a8a",
+  textAuxiliary: "#475569",
+  textAuxiliary2: "#64748b",
+  textSummary: "#0f172a",
+  textSummaryHighlight: "#2563eb",
+  textDetailToggle: "#334155",
+  textInteractive: "#ffffff",
+  interactiveBg: "#2563eb",
+});
+
 export function getCircleDeviceId() {
   return circleSdk.getDeviceId();
 }
@@ -48,9 +66,47 @@ export function verifyCircleEmailOtp(otpSession) {
   });
 }
 
-export function executeCircleChallenge({ challengeId, userToken, encryptionKey }) {
+export function executeCircleChallenge({
+  challengeId,
+  userToken,
+  encryptionKey,
+  display,
+}) {
   return new Promise((resolve, reject) => {
     circleSdk.setAuthentication({ userToken, encryptionKey });
+    if (display) {
+      circleSdk.setLocalizations({
+        common: {
+          confirm: display.confirmLabel || "Confirm",
+        },
+        contractInteraction: {
+          title: display.title,
+          subtitle: display.subtitle,
+          mainCurrency: {
+            amount: display.amount,
+            symbol: display.symbol,
+          },
+          fromLabel: "From wallet",
+          from: display.from,
+          contractAddressLabel: display.contractLabel,
+          contractInfo: [display.contractName],
+          networkFeeLabel: "Arc network fee",
+          networkFeeTip:
+            "The final network fee is calculated by Arc when you confirm.",
+          totalLabel: display.totalLabel,
+          total: [`${display.amount} ${display.symbol}`],
+          dataDetails: {
+            dataDetailsLabel: "Transaction details",
+            abiInfo: {
+              functionNameLabel: "Action",
+              functionName: display.action,
+              parametersLabel: "Escrow details",
+              parameters: display.details,
+            },
+          },
+        },
+      });
+    }
     circleSdk.execute(challengeId, (error, result) => {
       if (error) {
         reject(new Error(error.message || "Circle could not approve the request."));
