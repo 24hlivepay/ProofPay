@@ -507,7 +507,7 @@ export async function confirmDeliveryOnChain(escrowId, assetSymbol = "USDC") {
       display: {
         title: "Confirm Delivery",
         subtitle:
-          "Send an on-chain delivery signal to the ProofPay escrow. This does not release or transfer the locked USDC.",
+          `Send an on-chain delivery signal to the ProofPay escrow. This does not release or transfer the locked ${asset.symbol}.`,
         amount: "0",
         symbol: asset.symbol,
         fromLabel: "Confirming seller wallet",
