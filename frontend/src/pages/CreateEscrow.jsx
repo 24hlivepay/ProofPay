@@ -15,6 +15,22 @@ import { ESCROW_ASSETS, getEscrowAsset } from "../config/escrowAssets";
 
 const BALANCE_ABI = ["function balanceOf(address account) view returns (uint256)"];
 
+function formatAssetBalance(value, decimals) {
+  const numericValue = Number(value || 0);
+
+  if (!Number.isFinite(numericValue)) return "0";
+
+  return numericValue.toLocaleString(undefined, {
+    maximumFractionDigits: decimals,
+  });
+}
+
+function truncateAssetAmount(value, decimals) {
+  const [whole = "0", fraction = ""] = String(value).split(".");
+  const trimmedFraction = fraction.slice(0, decimals).replace(/0+$/, "");
+  return trimmedFraction ? `${whole}.${trimmedFraction}` : whole;
+}
+
 export default function CreateEscrow() {
   const navigate = useNavigate();
   const { setEscrowData } = useEscrow();
@@ -95,7 +111,7 @@ export default function CreateEscrow() {
       maximum = formatUnits(units > reserve ? units - reserve : 0n, 18);
     }
 
-    setAmount(maximum);
+    setAmount(truncateAssetAmount(maximum, selectedAsset.decimals));
   }
 
   async function handleCreateEscrow() {
@@ -175,7 +191,9 @@ export default function CreateEscrow() {
                   </label>
                   <div className="ml-auto flex items-center gap-2">
                     <span className="text-slate-500">
-                      {balanceLoading ? "Loading…" : `${assetBalance || "0"} ${selectedAsset.symbol}`}
+                      {balanceLoading
+                        ? "Loading…"
+                        : `${formatAssetBalance(assetBalance, selectedAsset.decimals)} ${selectedAsset.symbol}`}
                     </span>
                     <button
                       type="button"
