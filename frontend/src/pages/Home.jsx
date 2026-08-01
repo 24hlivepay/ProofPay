@@ -11,7 +11,10 @@ import { getLiveContractStats } from "../services/proofpayContract";
 import api from "../services/api";
 
 const EMPTY_COUNTS = { pending: 0, active: 0, completed: 0, cancelled: 0 };
-const EMPTY_STATS = { lockedUsdc: 0, liveEscrows: 0, activeBuyers: 0, activeSellers: 0 };
+const EMPTY_STATS = {
+  lockedByAsset: { USDC: 0, EURC: 0, cirBTC: 0 },
+  executedEscrows: 0,
+};
 const CONTRACT_STATS_TIMEOUT_MS = 3500;
 const CIRCLE_FAUCET_URL = "https://faucet.circle.com/?allow=true";
 
@@ -155,12 +158,10 @@ export default function Home() {
             ...Object.fromEntries(
               Object.entries(contractStats).filter(([, value]) => value !== null && value !== undefined)
             ),
-            // Database totals represent all ProofPay activity. The contract
-            // remains the source of truth for the currently locked balance.
-            liveEscrows: databaseStats.liveEscrows ?? 0,
-            activeBuyers: databaseStats.activeBuyers ?? 0,
-            activeSellers: databaseStats.activeSellers ?? 0,
-            lockedUsdc: contractStats.lockedUsdc ?? databaseStats.lockedUsdc ?? 0,
+            // Database records provide the total count. Each token contract
+            // remains the source of truth for its currently locked balance.
+            executedEscrows: databaseStats.executedEscrows ?? 0,
+            lockedByAsset: contractStats.lockedByAsset ?? databaseStats.lockedByAsset ?? EMPTY_STATS.lockedByAsset,
           });
           setNetworkStatsError("");
         }
@@ -335,9 +336,11 @@ function LiveEscrowOverview({
   onFaucetClick,
 }) {
   const hasStats = Boolean(stats);
-  const lockedAmount = Number(stats?.lockedUsdc || 0).toLocaleString(undefined, {
+  const formatLockedAmount = (symbol) => Number(
+    stats?.lockedByAsset?.[symbol] || 0
+  ).toLocaleString(undefined, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: symbol === "cirBTC" ? 8 : 6,
   });
 
   return (
@@ -367,10 +370,10 @@ function LiveEscrowOverview({
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="USDC Locked" value={hasStats ? `${lockedAmount} USDC` : "Loading…"} primary />
-        <StatCard label="Total Escrows" value={hasStats ? stats.liveEscrows ?? "Checking…" : "Loading…"} />
-        <StatCard label="Buyers" value={hasStats ? stats.activeBuyers ?? "Checking…" : "Loading…"} />
-        <StatCard label="Verified Sellers" value={hasStats ? stats.activeSellers ?? "Checking…" : "Loading…"} />
+        <StatCard label="USDC Locked" value={hasStats ? `${formatLockedAmount("USDC")} USDC` : "Loading…"} primary />
+        <StatCard label="EURC Locked" value={hasStats ? `${formatLockedAmount("EURC")} EURC` : "Loading…"} />
+        <StatCard label="cirBTC Locked" value={hasStats ? `${formatLockedAmount("cirBTC")} cirBTC` : "Loading…"} />
+        <StatCard label="Executed Escrows" value={hasStats ? stats.executedEscrows ?? "Checking…" : "Loading…"} />
       </div>
       {statsError && <p className="mt-5 text-sm font-medium text-blue-100">{statsError}</p>}
     </section>

@@ -1228,11 +1228,15 @@ app.get("/api/escrow-stats", async (req, res) => {
   const lockedEscrows = allEscrows.filter(
     (escrow) => escrow.status === "Funds Locked" || escrow.status === "Delivered"
   );
+  const executedEscrows = allEscrows.filter((escrow) =>
+    ["Funds Locked", "Delivered", "Released"].includes(escrow.status)
+  ).length;
 
-  const lockedUsdc = lockedEscrows.reduce(
-    (total, escrow) => total + (Number(escrow.amount) || 0),
-    0
-  );
+  const lockedByAsset = lockedEscrows.reduce((totals, escrow) => {
+    const symbol = ESCROW_ASSETS.has(escrow.assetSymbol) ? escrow.assetSymbol : "USDC";
+    totals[symbol] += Number(escrow.amount) || 0;
+    return totals;
+  }, { USDC: 0, EURC: 0, cirBTC: 0 });
   const activeBuyers = new Set(
     allEscrows.map((escrow) => escrow.buyerWallet?.toLowerCase()).filter(Boolean)
   ).size;
@@ -1242,7 +1246,8 @@ app.get("/api/escrow-stats", async (req, res) => {
 
   return res.json({
     success: true,
-    lockedUsdc,
+    lockedByAsset,
+    executedEscrows,
     liveEscrows: allEscrows.length,
     activeBuyers,
     activeSellers,

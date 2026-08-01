@@ -1,7 +1,7 @@
 import { Contract, formatUnits, Interface, JsonRpcProvider, parseUnits } from "ethers";
 import { connectWallet } from "./wallet";
 import { executeCircleContract } from "./circleTransactions";
-import { getEscrowAsset } from "../config/escrowAssets";
+import { ESCROW_ASSETS, getEscrowAsset } from "../config/escrowAssets";
 
 export const PROOFPAY_ESCROW_ADDRESS =
   "0xCd0f43E573899809ff96C560439570A760698C9a";
@@ -674,86 +674,13 @@ export async function getEscrowOnChain(escrowId, assetSymbol = "USDC") {
 // temporary JSON backend, so the dashboard reflects the deployed contract.
 export async function getLiveContractStats() {
   const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
-  const usdc = new Contract(ARC_TESTNET_USDC_ADDRESS, USDC_ABI, provider);
-
-  const [balance, latestBlock] = await Promise.all([
-    usdc.balanceOf(PROOFPAY_ESCROW_ADDRESS),
-    provider.getBlockNumber(),
-  ]);
-
-  // Arc Testnet limits a single eth_getLogs request to 10,000 blocks.
-  // Read the deployed contract history in small sequential ranges so a busy
-  // explorer/RPC cannot make the dashboard incorrectly fall back to zero.
-  const logs = [];
-
-  try {
-    for (
-      let fromBlock = PROOFPAY_DEPLOYMENT_BLOCK;
-      fromBlock <= latestBlock;
-      fromBlock += ARC_LOG_BLOCK_WINDOW
-    ) {
-      const toBlock = Math.min(fromBlock + ARC_LOG_BLOCK_WINDOW - 1, latestBlock);
-      const rangeLogs = await provider.getLogs({
-        address: PROOFPAY_ESCROW_ADDRESS,
-        fromBlock,
-        toBlock,
-      });
-
-      logs.push(...rangeLogs);
-    }
-  } catch (error) {
-    // The live USDC balance is still authoritative even if Arc's public RPC
-    // is momentarily rate-limiting the historical event scan.
-    console.warn("ProofPay event scan is temporarily unavailable:", error);
-    return {
-      lockedUsdc: formatUnits(balance, USDC_DECIMALS),
-      liveEscrows: null,
-      activeBuyers: null,
-      activeSellers: null,
-    };
-  }
-
-  const escrows = new Map();
-
-  for (const log of logs) {
-    let parsed;
-
-    try {
-      parsed = escrowInterface.parseLog(log);
-    } catch {
-      continue;
-    }
-
-    const escrowKey = log.topics[1];
-    if (!escrowKey) continue;
-
-    if (parsed.name === "EscrowCreated") {
-      escrows.set(escrowKey, {
-        status: "Funded",
-        buyer: parsed.args.buyer.toLowerCase(),
-        seller: parsed.args.seller.toLowerCase(),
-      });
-      continue;
-    }
-
-    const escrow = escrows.get(escrowKey);
-    if (!escrow) continue;
-
-    if (parsed.name === "DeliveryConfirmed") escrow.status = "Delivered";
-    if (parsed.name === "DisputeOpened") escrow.status = "Disputed";
-    if (parsed.name === "FundsReleased") escrow.status = "Released";
-    if (parsed.name === "FundsRefunded") escrow.status = "Refunded";
-    if (parsed.name === "DisputeResolved") escrow.status = "Resolved";
-  }
-
-  const liveEscrows = [...escrows.values()].filter((escrow) =>
-    ["Funded", "Delivered", "Disputed"].includes(escrow.status)
+  const balances = await Promise.all(
+    ESCROW_ASSETS.map(async (asset) => {
+      const token = new Contract(asset.tokenAddress, USDC_ABI, provider);
+      const balance = await token.balanceOf(asset.escrowAddress);
+      return [asset.symbol, formatUnits(balance, asset.decimals)];
+    })
   );
 
-  return {
-    lockedUsdc: formatUnits(balance, USDC_DECIMALS),
-    liveEscrows: liveEscrows.length,
-    activeBuyers: new Set(liveEscrows.map((escrow) => escrow.buyer)).size,
-    activeSellers: new Set(liveEscrows.map((escrow) => escrow.seller)).size,
-  };
+  return { lockedByAsset: Object.fromEntries(balances) };
 }
