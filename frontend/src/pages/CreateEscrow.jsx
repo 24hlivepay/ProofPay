@@ -168,33 +168,14 @@ export default function CreateEscrow() {
               <InputField placeholder="Buyer Name" value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
               <InputField placeholder="Product / Service Name" value={productName} onChange={(event) => setProductName(event.target.value)} />
               <InputField placeholder="Product ID (Optional)" value={productId} onChange={(event) => setProductId(event.target.value)} />
-              <div>
-                <label htmlFor="escrow-asset" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Payment asset
-                </label>
-                <select
-                  id="escrow-asset"
-                  value={assetSymbol}
-                  onChange={(event) => {
-                    setAssetSymbol(event.target.value);
-                    setAmount("");
-                    setAssetBalance("");
-                  }}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold outline-none focus:border-blue-500"
-                >
-                  {ESCROW_ASSETS.map((asset) => (
-                    <option key={asset.symbol} value={asset.symbol}>
-                      {asset.symbol} — {asset.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-semibold text-slate-700">Amount ({selectedAsset.symbol})</span>
-                  <div className="flex items-center gap-3">
+              <div className="overflow-hidden rounded-xl border border-slate-300 bg-white transition focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 pt-3 text-sm">
+                  <label htmlFor="escrow-asset" className="font-semibold text-slate-700">
+                    Payment asset
+                  </label>
+                  <div className="ml-auto flex items-center gap-2">
                     <span className="text-slate-500">
-                      Balance: {balanceLoading ? "Loading…" : assetBalance || "—"} {selectedAsset.symbol}
+                      {balanceLoading ? "Loading…" : `${assetBalance || "—"} ${selectedAsset.symbol}`}
                     </span>
                     <button
                       type="button"
@@ -206,16 +187,32 @@ export default function CreateEscrow() {
                     </button>
                   </div>
                 </div>
-                <InputField
-                  placeholder={`Amount (${selectedAsset.symbol})`}
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
-                {!selectedAsset.escrowAddress && (
-                  <p className="mt-2 text-xs font-medium text-amber-700">
-                    {selectedAsset.symbol} escrow contract deployment pending.
-                  </p>
-                )}
+                <div className="flex items-center gap-3 px-4 pb-3">
+                  <select
+                    id="escrow-asset"
+                    value={assetSymbol}
+                    onChange={(event) => {
+                      setAssetSymbol(event.target.value);
+                      setAmount("");
+                      setAssetBalance("");
+                    }}
+                    className="min-w-0 flex-1 appearance-auto bg-white py-2 text-lg font-bold outline-none"
+                  >
+                    {ESCROW_ASSETS.map((asset) => (
+                      <option key={asset.symbol} value={asset.symbol}>
+                        {asset.symbol}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    inputMode="decimal"
+                    aria-label={`Amount in ${selectedAsset.symbol}`}
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                    className="w-32 border-l border-slate-200 py-2 pl-4 text-right text-lg font-bold outline-none placeholder:text-slate-400 sm:w-44"
+                  />
+                </div>
               </div>
               <textarea rows={3} placeholder="Deal Description (Optional)" value={description} onChange={(event) => setDescription(event.target.value)} className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
