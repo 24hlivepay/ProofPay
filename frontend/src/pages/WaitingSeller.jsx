@@ -274,7 +274,7 @@ export default function WaitingSeller() {
 
               <div className="flex justify-between">
                 <span className="text-slate-500">Amount</span>
-                <strong>{escrowData.amount} USDC</strong>
+                <strong>{escrowData.amount} {escrowData.assetSymbol || "USDC"}</strong>
               </div>
 
               <div className="flex justify-between">

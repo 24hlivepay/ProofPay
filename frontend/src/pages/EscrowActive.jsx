@@ -45,7 +45,7 @@ export default function EscrowActive() {
       setReleaseStage("confirm-wallet");
       const transactionHash = await releaseFundsOnChain(escrowData.escrowId, () => {
         setReleaseStage("processing");
-      });
+      }, escrowData.assetSymbol);
       const response = await api.post(`/escrow/${escrowData.escrowId}/release`, {
         transactionHash,
       });
@@ -53,7 +53,7 @@ export default function EscrowActive() {
       setReleaseStage("success");
     } catch (releaseError) {
       setReleaseStage("");
-      setError(releaseError.message || "Unable to release USDC.");
+      setError(releaseError.message || `Unable to release ${escrowData.assetSymbol || "USDC"}.`);
     } finally {
       setSubmitting(false);
     }
@@ -68,14 +68,14 @@ export default function EscrowActive() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div><h1 className="text-3xl font-bold">Escrow Active</h1><p className="mt-2 text-slate-600">Manage the live ARC Testnet USDC escrow.</p></div>
-            <span className={`rounded-full px-5 py-2 font-semibold ${delivered ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{delivered ? "Delivered" : "USDC Locked"}</span>
+            <span className={`rounded-full px-5 py-2 font-semibold ${delivered ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{delivered ? "Delivered" : `${escrowData.assetSymbol || "USDC"} Locked`}</span>
           </div>
 
           <div className="mt-7 rounded-xl border border-slate-200 p-5 sm:p-6">
             <div className="space-y-4">
               <SummaryRow label="Buyer" value={escrowData.buyerName} />
               <SummaryRow label="Seller" value={escrowData.sellerName} />
-              <SummaryRow label="Amount" value={`${escrowData.amount} USDC`} />
+              <SummaryRow label="Amount" value={`${escrowData.amount} ${escrowData.assetSymbol || "USDC"}`} />
               <SummaryRow label="Escrow ID" value={escrowData.escrowId} />
               {escrowData.transactionHash && <SummaryRow label="Latest transaction" value={escrowData.transactionHash} />}
             </div>
@@ -87,14 +87,14 @@ export default function EscrowActive() {
 
           <div className={`mt-8 rounded-2xl border p-6 ${delivered ? "border-blue-200 bg-blue-50" : "border-yellow-200 bg-yellow-50"}`}>
             <h2 className={`text-2xl font-bold ${delivered ? "text-blue-700" : "text-yellow-700"}`}>{delivered ? "Seller Confirmed Delivery" : "Funds Locked"}</h2>
-            <p className="mt-3 text-slate-700">{delivered ? "Review the delivery, then release the USDC to the seller." : "USDC is held in the live smart contract until the seller confirms delivery."}</p>
+            <p className="mt-3 text-slate-700">{delivered ? `Review the delivery, then release the ${escrowData.assetSymbol || "USDC"} to the seller.` : `${escrowData.assetSymbol || "USDC"} is held in the live smart contract until the seller confirms delivery.`}</p>
           </div>
 
           {error && <p className="mt-6 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
 
           <div className="mt-10">
             <button onClick={handleReleaseFunds} disabled={!delivered || submitting} className="w-full rounded-xl bg-green-600 py-4 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300">
-              {submitting ? "Releasing USDC..." : delivered ? "Release Funds" : "Waiting for Delivery"}
+              {submitting ? `Releasing ${escrowData.assetSymbol || "USDC"}...` : delivered ? "Release Funds" : "Waiting for Delivery"}
             </button>
             <button onClick={() => navigate(backTo)} className="mt-4 w-full rounded-xl bg-blue-600 py-4 font-semibold text-white transition hover:bg-blue-700">
               {backLabel}
@@ -126,7 +126,7 @@ export default function EscrowActive() {
               <>
                 <div className="text-5xl">✅</div>
                 <h2 className="mt-4 text-2xl font-bold text-slate-900">Funds released</h2>
-                <p className="mt-3 text-slate-600">The USDC payment has been transferred to the seller's wallet.</p>
+                <p className="mt-3 text-slate-600">The {escrowData.assetSymbol || "USDC"} payment has been transferred to the seller's wallet.</p>
                 <button
                   onClick={() => navigate("/dashboard/buying")}
                   className="mt-7 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"

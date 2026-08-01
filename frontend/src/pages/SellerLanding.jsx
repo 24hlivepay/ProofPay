@@ -86,7 +86,7 @@ export default function SellerLanding() {
                 </span>
 
                 <strong>
-                  {escrowData.amount} USDC
+                  {escrowData.amount} {escrowData.assetSymbol || "USDC"}
                 </strong>
               </div>
 

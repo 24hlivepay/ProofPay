@@ -94,7 +94,7 @@ export function executeCircleChallenge({
           networkFeeTip:
             "The final network fee is calculated by Arc when you confirm.",
           totalLabel: display.totalLabel,
-          total: [`${display.amount} ${display.symbol}`],
+          total: [display.total || `${display.amount} ${display.symbol}`],
           dataDetails: {
             dataDetailsLabel: "Transaction details",
             abiInfo: {

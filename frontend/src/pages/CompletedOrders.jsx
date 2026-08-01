@@ -45,7 +45,7 @@ function OrderCard({ order, seller }) {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Detail label={seller ? "Buyer" : "Seller"} value={seller ? order.buyerName : order.sellerName} />
-        <Detail label={seller ? "Amount received" : "Amount paid"} value={`${order.amount} USDC`} />
+        <Detail label={seller ? "Amount received" : "Amount paid"} value={`${order.amount} ${order.assetSymbol || "USDC"}`} />
         <Detail label="Created" value={formatDate(order.createdAt)} />
         <Detail label="Completed" value={formatDate(order.releasedAt)} />
       </div>
@@ -55,7 +55,7 @@ function OrderCard({ order, seller }) {
           <p className="font-bold text-slate-900">Blockchain proof</p>
           <p className="mt-1 text-sm text-slate-600">Open either transaction on Arcscan to verify this escrow's on-chain history.</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            {order.depositTransactionHash && <ArcscanLink label="View USDC lock" hash={order.depositTransactionHash} />}
+            {order.depositTransactionHash && <ArcscanLink label={`View ${order.assetSymbol || "USDC"} lock`} hash={order.depositTransactionHash} />}
             {order.releaseTransactionHash && <ArcscanLink label="View payment release" hash={order.releaseTransactionHash} />}
           </div>
         </div>

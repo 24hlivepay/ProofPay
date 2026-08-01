@@ -1,11 +1,19 @@
 import { useState } from "react";
+import { Contract, formatUnits, parseUnits } from "ethers";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import InputField from "../components/InputField";
 import PrimaryButton from "../components/PrimaryButton";
 import { useEscrow } from "../context/EscrowContext";
 import api from "../services/api";
-import { connectWallet } from "../services/wallet";
+import {
+  connectWallet,
+  getCircleAuthSession,
+  getWalletSession,
+} from "../services/wallet";
+import { ESCROW_ASSETS, getEscrowAsset } from "../config/escrowAssets";
+
+const BALANCE_ABI = ["function balanceOf(address account) view returns (uint256)"];
 
 export default function CreateEscrow() {
   const navigate = useNavigate();
@@ -15,9 +23,80 @@ export default function CreateEscrow() {
   const [productName, setProductName] = useState("");
   const [productId, setProductId] = useState("");
   const [amount, setAmount] = useState("");
+  const [assetSymbol, setAssetSymbol] = useState("USDC");
+  const [assetBalance, setAssetBalance] = useState("");
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const selectedAsset = getEscrowAsset(assetSymbol);
+
+  async function loadSelectedBalance() {
+    try {
+      setBalanceLoading(true);
+      setError("");
+      const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
+      let balance;
+
+      if (walletType === "circle") {
+        const session = getWalletSession();
+        const auth = getCircleAuthSession();
+
+        if (!session?.walletId || !auth?.userToken) {
+          throw new Error("Your Circle wallet session has expired. Sign in again.");
+        }
+
+        const response = await api.get(`/circle/wallets/${session.walletId}/balances`, {
+          headers: { "X-User-Token": auth.userToken },
+        });
+        const matches = (response.data.data?.tokenBalances || []).filter(
+          (item) => item?.token?.symbol === selectedAsset.symbol
+        );
+        balance = matches.reduce(
+          (largest, item) => Number(item.amount || 0) > Number(largest) ? item.amount : largest,
+          "0"
+        );
+      } else {
+        const { address, provider } = await connectWallet();
+
+        if (selectedAsset.isNative) {
+          balance = formatUnits(await provider.getBalance(address), 18);
+        } else {
+          const token = new Contract(
+            selectedAsset.tokenAddress,
+            BALANCE_ABI,
+            provider
+          );
+          balance = formatUnits(
+            await token.balanceOf(address),
+            selectedAsset.decimals
+          );
+        }
+      }
+
+      setAssetBalance(String(balance || "0"));
+      return String(balance || "0");
+    } catch (balanceError) {
+      setError(balanceError.message || `Unable to load ${selectedAsset.symbol} balance.`);
+      return null;
+    } finally {
+      setBalanceLoading(false);
+    }
+  }
+
+  async function useMaximumAmount() {
+    const currentBalance = assetBalance || await loadSelectedBalance();
+    if (currentBalance === null) return;
+
+    let maximum = currentBalance;
+    if (selectedAsset.symbol === "USDC") {
+      const units = parseUnits(currentBalance, 18);
+      const reserve = parseUnits("0.01", 18);
+      maximum = formatUnits(units > reserve ? units - reserve : 0n, 18);
+    }
+
+    setAmount(maximum);
+  }
 
   async function handleCreateEscrow() {
     if (!buyerName || !sellerName || !productName || !amount) {
@@ -25,10 +104,20 @@ export default function CreateEscrow() {
       return;
     }
 
-    const isValidUsdcAmount = /^\d+(\.\d{1,6})?$/.test(amount.trim());
+    const amountPattern = new RegExp(`^\\d+(\\.\\d{1,${selectedAsset.decimals}})?$`);
 
-    if (!isValidUsdcAmount || Number(amount) <= 0) {
-      setError("Enter a valid USDC amount, for example 25 or 25.50.");
+    if (!amountPattern.test(amount.trim()) || Number(amount) <= 0) {
+      setError(`Enter a valid ${selectedAsset.symbol} amount.`);
+      return;
+    }
+
+    if (!selectedAsset.escrowAddress) {
+      setError(`${selectedAsset.symbol} escrow deployment is not configured yet.`);
+      return;
+    }
+
+    if (assetBalance && Number(amount) > Number(assetBalance)) {
+      setError(`Your ${selectedAsset.symbol} balance is too low.`);
       return;
     }
 
@@ -43,6 +132,10 @@ export default function CreateEscrow() {
         productName,
         productId,
         amount,
+        assetSymbol: selectedAsset.symbol,
+        assetDecimals: selectedAsset.decimals,
+        tokenAddress: selectedAsset.tokenAddress,
+        escrowContractAddress: selectedAsset.escrowAddress,
         description,
       });
 
@@ -75,7 +168,55 @@ export default function CreateEscrow() {
               <InputField placeholder="Buyer Name" value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
               <InputField placeholder="Product / Service Name" value={productName} onChange={(event) => setProductName(event.target.value)} />
               <InputField placeholder="Product ID (Optional)" value={productId} onChange={(event) => setProductId(event.target.value)} />
-              <InputField placeholder="Amount (USDC) — e.g. 25" value={amount} onChange={(event) => setAmount(event.target.value)} />
+              <div>
+                <label htmlFor="escrow-asset" className="mb-2 block text-sm font-semibold text-slate-700">
+                  Payment asset
+                </label>
+                <select
+                  id="escrow-asset"
+                  value={assetSymbol}
+                  onChange={(event) => {
+                    setAssetSymbol(event.target.value);
+                    setAmount("");
+                    setAssetBalance("");
+                  }}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold outline-none focus:border-blue-500"
+                >
+                  {ESCROW_ASSETS.map((asset) => (
+                    <option key={asset.symbol} value={asset.symbol}>
+                      {asset.symbol} — {asset.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                  <span className="font-semibold text-slate-700">Amount ({selectedAsset.symbol})</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-500">
+                      Balance: {balanceLoading ? "Loading…" : assetBalance || "—"} {selectedAsset.symbol}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={useMaximumAmount}
+                      disabled={balanceLoading}
+                      className="rounded-lg bg-blue-50 px-3 py-1 font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                    >
+                      MAX
+                    </button>
+                  </div>
+                </div>
+                <InputField
+                  placeholder={`Amount (${selectedAsset.symbol})`}
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                />
+                {!selectedAsset.escrowAddress && (
+                  <p className="mt-2 text-xs font-medium text-amber-700">
+                    {selectedAsset.symbol} escrow contract deployment pending.
+                  </p>
+                )}
+              </div>
               <textarea rows={3} placeholder="Deal Description (Optional)" value={description} onChange={(event) => setDescription(event.target.value)} className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500" />
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 <strong>12-hour secure link</strong>

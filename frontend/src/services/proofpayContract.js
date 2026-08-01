@@ -1,6 +1,7 @@
 import { Contract, formatUnits, Interface, JsonRpcProvider, parseUnits } from "ethers";
 import { connectWallet } from "./wallet";
 import { executeCircleContract } from "./circleTransactions";
+import { getEscrowAsset } from "../config/escrowAssets";
 
 export const PROOFPAY_ESCROW_ADDRESS =
   "0xCd0f43E573899809ff96C560439570A760698C9a";
@@ -43,6 +44,12 @@ const USDC_ABI = [
 
 const escrowInterface = new Interface(ESCROW_ABI);
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ARC_READ_RETRY_DELAYS_MS = [0, 350, 900];
+const ON_CHAIN_STATUS = {
+  FUNDED: 1,
+  DELIVERED: 2,
+  RELEASED: 3,
+};
 
 function technicalError(error) {
   return (
@@ -55,9 +62,25 @@ function technicalError(error) {
   );
 }
 
+function isTransientArcCallError(error) {
+  const message = technicalError(error).toLowerCase();
+
+  return (
+    error?.code === "CALL_EXCEPTION" ||
+    message.includes("missing revert data") ||
+    message.includes("could not coalesce")
+  );
+}
+
 function readableError(error) {
   const message = technicalError(error);
   const normalizedMessage = message.toLowerCase();
+  const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
+  const walletName = walletType === "rabby"
+    ? "Rabby"
+    : walletType === "circle"
+      ? "Circle wallet"
+      : "MetaMask";
 
   if (
     normalizedMessage.includes("user rejected") ||
@@ -92,6 +115,16 @@ function readableError(error) {
   if (
     message.startsWith("Buyer wallet") ||
     message.startsWith("Buyer wallet has") ||
+    message.startsWith("Unable to read buyer USDC balance") ||
+    message.startsWith("Arc Testnet could not read") ||
+    message.startsWith("USDC approval failed") ||
+    message.startsWith("USDC lock transaction failed") ||
+    message.startsWith("Wallet connection failed") ||
+    message.startsWith("This escrow ID already exists") ||
+    message.startsWith("The USDC is already locked") ||
+    message.startsWith("Connect the original buyer wallet") ||
+    message.startsWith("Delivery is not confirmed on-chain") ||
+    message.startsWith("This escrow has already been released") ||
     message.startsWith("Switch MetaMask") ||
     message.startsWith("Wallet connection") ||
     message.startsWith("MetaMask is not installed")
@@ -100,10 +133,10 @@ function readableError(error) {
   }
 
   console.error("ProofPay transaction error:", error);
-  return "We could not complete this payment. No funds were moved. Please reopen MetaMask, confirm the buyer wallet and Arc Testnet, then try again.";
+  return `We could not complete this payment. No funds were moved. Please reopen ${walletName}, confirm the buyer wallet and Arc Testnet, then try again.`;
 }
 
-async function getContracts() {
+async function getContracts(assetSymbol = "USDC") {
   let wallet;
 
   try {
@@ -112,20 +145,111 @@ async function getContracts() {
     throw new Error(`Wallet connection failed: ${readableError(error)}`);
   }
 
+  const asset = getEscrowAsset(assetSymbol);
+
   return {
     address: wallet.address,
     provider: wallet.provider,
-    escrow: new Contract(PROOFPAY_ESCROW_ADDRESS, ESCROW_ABI, wallet.signer),
-    usdc: new Contract(ARC_TESTNET_USDC_ADDRESS, USDC_ABI, wallet.signer),
+    asset,
+    escrow: new Contract(asset.escrowAddress, ESCROW_ABI, wallet.signer),
+    usdc: new Contract(asset.tokenAddress, USDC_ABI, wallet.signer),
   };
 }
 
-function getUsdcAmount(amount) {
-  return parseUnits(String(amount), USDC_DECIMALS);
+function getAssetAmount(amount, decimals = USDC_DECIMALS) {
+  return parseUnits(String(amount), decimals);
 }
 
 function isCircleWallet() {
   return localStorage.getItem("proofpay-wallet-type") === "circle";
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function readUsdcBalance(address, connectedUsdc, tokenAddress = ARC_TESTNET_USDC_ADDRESS) {
+  const publicProvider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
+  const publicUsdc = new Contract(
+    tokenAddress,
+    USDC_ABI,
+    publicProvider
+  );
+  let lastError;
+
+  for (const delay of ARC_READ_RETRY_DELAYS_MS) {
+    if (delay) await wait(delay);
+
+    for (const usdc of [connectedUsdc, publicUsdc].filter(Boolean)) {
+      try {
+        return await usdc.balanceOf(address);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  throw new Error(
+    "Arc Testnet could not read the buyer USDC balance after several attempts. Please wait a moment and try again.",
+    { cause: lastError }
+  );
+}
+
+async function readEscrowWithRetry(
+  escrowId,
+  connectedEscrow,
+  escrowAddress = PROOFPAY_ESCROW_ADDRESS
+) {
+  const publicProvider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
+  const publicEscrow = new Contract(
+    escrowAddress,
+    ESCROW_ABI,
+    publicProvider
+  );
+  let lastError;
+
+  for (const delay of ARC_READ_RETRY_DELAYS_MS) {
+    if (delay) await wait(delay);
+
+    for (const escrow of [connectedEscrow, publicEscrow].filter(Boolean)) {
+      try {
+        return await escrow.getEscrow(escrowId);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  throw new Error(
+    "Arc Testnet could not check this escrow after several attempts. No funds were moved. Please wait a moment and try again.",
+    { cause: lastError }
+  );
+}
+
+function validateReleaseRequest(onChainEscrow, buyerAddress) {
+  if (
+    !buyerAddress ||
+    onChainEscrow.buyer.toLowerCase() !== buyerAddress.toLowerCase()
+  ) {
+    const expectedBuyer = onChainEscrow.buyer;
+    throw new Error(
+      `Connect the original buyer wallet (${expectedBuyer.slice(0, 6)}...${expectedBuyer.slice(-4)}) to release these funds.`
+    );
+  }
+
+  const status = Number(onChainEscrow.status);
+
+  if (status === ON_CHAIN_STATUS.RELEASED) {
+    throw new Error(
+      "This escrow has already been released on-chain. Refresh the order before trying again."
+    );
+  }
+
+  if (status !== ON_CHAIN_STATUS.DELIVERED) {
+    throw new Error(
+      "Delivery is not confirmed on-chain yet. Ask the seller to complete the Confirm Delivery wallet transaction first."
+    );
+  }
 }
 
 async function recoverExistingEscrow({
@@ -133,12 +257,17 @@ async function recoverExistingEscrow({
   buyerAddress,
   sellerAddress,
   amountUnits,
+  asset,
   provider: connectedProvider,
 }) {
   const provider =
     connectedProvider || new JsonRpcProvider(ARC_TESTNET_RPC_URL);
-  const escrow = new Contract(PROOFPAY_ESCROW_ADDRESS, ESCROW_ABI, provider);
-  const existing = await escrow.getEscrow(escrowId);
+  const escrow = new Contract(asset.escrowAddress, ESCROW_ABI, provider);
+  const existing = await readEscrowWithRetry(
+    escrowId,
+    escrow,
+    asset.escrowAddress
+  );
 
   if (existing.buyer.toLowerCase() === ZERO_ADDRESS) {
     return null;
@@ -172,7 +301,7 @@ async function recoverExistingEscrow({
       toBlock - ARC_LOG_BLOCK_WINDOW + 1
     );
     const logs = await provider.getLogs({
-      address: PROOFPAY_ESCROW_ADDRESS,
+      address: asset.escrowAddress,
       topics,
       fromBlock,
       toBlock,
@@ -184,7 +313,7 @@ async function recoverExistingEscrow({
   }
 
   throw new Error(
-    "The USDC is already locked on-chain, but ProofPay could not locate its deposit transaction. Please contact support with the escrow ID."
+    `The ${asset.symbol} is already locked on-chain, but ProofPay could not locate its deposit transaction. Please contact support with the escrow ID.`
   );
 }
 
@@ -215,45 +344,43 @@ async function executeCircleProofPay({
   }
 }
 
-export async function fundEscrow({ escrowId, sellerAddress, amount }) {
+export async function fundEscrow({ escrowId, sellerAddress, amount, assetSymbol = "USDC" }) {
+  const asset = getEscrowAsset(assetSymbol);
+
   if (isCircleWallet()) {
     const walletAddress = localStorage.getItem("proofpay-wallet");
-    const amountUnits = getUsdcAmount(amount);
+    const amountUnits = getAssetAmount(amount, asset.decimals);
     const recovered = await recoverExistingEscrow({
       escrowId,
       buyerAddress: walletAddress,
       sellerAddress,
       amountUnits,
+      asset,
     });
     if (recovered) return recovered;
 
-    const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
-    const usdc = new Contract(ARC_TESTNET_USDC_ADDRESS, USDC_ABI, provider);
-    const balance = await usdc.balanceOf(walletAddress);
-
-    if (balance < amountUnits + NETWORK_FEE_RESERVE) {
-      throw new Error(
-        `Buyer wallet has ${formatUnits(balance, USDC_DECIMALS)} USDC. This escrow needs ${amount} USDC plus a small Arc network fee.`
-      );
-    }
-
+    // Do not preflight Circle wallets with ERC-20 balanceOf. Arc's native-USDC
+    // precompile intermittently rejects that public RPC read even when the
+    // wallet is funded. Circle validates the balance when it prepares the
+    // approval and escrow transactions, so this redundant read only creates
+    // false deposit failures.
     await executeCircleProofPay({
-      contractAddress: ARC_TESTNET_USDC_ADDRESS,
+      contractAddress: asset.tokenAddress,
       abiFunctionSignature: "approve(address,uint256)",
-      abiParameters: [PROOFPAY_ESCROW_ADDRESS, amountUnits.toString()],
+      abiParameters: [asset.escrowAddress, amountUnits.toString()],
       display: {
-        title: "Approve USDC",
+        title: `Approve ${asset.symbol}`,
         subtitle:
-          "Step 1 of 2 • Authorize the exact escrow amount. No USDC moves in this step.",
+          `Step 1 of 2 • Authorize the exact escrow amount. No ${asset.symbol} moves in this step.`,
         amount: String(amount),
-        symbol: "USDC",
+        symbol: asset.symbol,
         fromLabel: "Authorizing wallet",
         from: walletAddress,
         contractLabel: "Permission for",
         contractName: "Verified ProofPay Escrow",
         totalLabel: "Approval limit",
-        confirmLabel: "Authorize USDC",
-        action: "Authorize exact USDC allowance",
+        confirmLabel: `Authorize ${asset.symbol}`,
+        action: `Authorize exact ${asset.symbol} allowance`,
         details: [
           `Escrow ID: ${escrowId}`,
           `Seller: ${sellerAddress}`,
@@ -264,21 +391,21 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
       },
     });
     const transaction = await executeCircleProofPay({
-      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      contractAddress: asset.escrowAddress,
       abiFunctionSignature: "createEscrow(string,address,uint256)",
       abiParameters: [escrowId, sellerAddress, amountUnits.toString()],
       display: {
         title: "Lock Escrow Funds",
         subtitle:
-          "Step 2 of 2 • Transfer USDC from your wallet into the escrow contract.",
+          `Step 2 of 2 • Transfer ${asset.symbol} from your wallet into the escrow contract.`,
         amount: String(amount),
-        symbol: "USDC",
+        symbol: asset.symbol,
         fromLabel: "Funding wallet",
         from: walletAddress,
         contractLabel: "Funds destination",
         contractName: "Verified ProofPay Escrow",
         totalLabel: "Amount to lock",
-        confirmLabel: `Lock ${amount} USDC`,
+        confirmLabel: `Lock ${amount} ${asset.symbol}`,
         action: "Lock funds in escrow",
         details: [
           `Escrow ID: ${escrowId}`,
@@ -294,13 +421,14 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
   }
 
   try {
-    const { address, provider, escrow, usdc } = await getContracts();
-    const amountUnits = getUsdcAmount(amount);
+    const { address, provider, escrow, usdc } = await getContracts(assetSymbol);
+    const amountUnits = getAssetAmount(amount, asset.decimals);
     const recovered = await recoverExistingEscrow({
       escrowId,
       buyerAddress: address,
       sellerAddress,
       amountUnits,
+      asset,
       provider,
     });
     if (recovered) return recovered;
@@ -308,16 +436,21 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
     let balance;
 
     try {
-      balance = await usdc.balanceOf(address);
+      balance = await readUsdcBalance(address, usdc, asset.tokenAddress);
     } catch (error) {
-      throw new Error(`Unable to read buyer USDC balance: ${readableError(error)}`);
+      throw new Error(
+        `Unable to read buyer ${asset.symbol} balance: ${readableError(error)}`,
+        { cause: error }
+      );
     }
 
-    const minimumRequired = amountUnits + NETWORK_FEE_RESERVE;
+    const minimumRequired = amountUnits + (
+      asset.symbol === "USDC" ? NETWORK_FEE_RESERVE : 0n
+    );
 
     if (balance < minimumRequired) {
       throw new Error(
-        `Buyer wallet has ${formatUnits(balance, USDC_DECIMALS)} USDC. This escrow needs ${amount} USDC plus a small Arc network fee. Add a little more USDC, then try again.`
+        `Buyer wallet has ${formatUnits(balance, asset.decimals)} ${asset.symbol}. This escrow needs ${amount} ${asset.symbol}.`
       );
     }
 
@@ -328,7 +461,7 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
 
     try {
       approval = await usdc.approve(
-        PROOFPAY_ESCROW_ADDRESS,
+        asset.escrowAddress,
         amountUnits,
         {
           gasLimit: ARC_APPROVAL_GAS_LIMIT,
@@ -336,7 +469,7 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
       );
       await approval.wait();
     } catch (error) {
-      throw new Error(`USDC approval failed: ${readableError(error)}`);
+      throw new Error(`${asset.symbol} approval failed: ${readableError(error)}`);
     }
 
     let transaction;
@@ -353,7 +486,7 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
       );
       receipt = await transaction.wait();
     } catch (error) {
-      throw new Error(`USDC lock transaction failed: ${readableError(error)}`);
+      throw new Error(`${asset.symbol} lock transaction failed: ${readableError(error)}`);
     }
 
     return { hash: transaction.hash, receipt };
@@ -362,18 +495,43 @@ export async function fundEscrow({ escrowId, sellerAddress, amount }) {
   }
 }
 
-export async function confirmDeliveryOnChain(escrowId) {
+export async function confirmDeliveryOnChain(escrowId, assetSymbol = "USDC") {
+  const asset = getEscrowAsset(assetSymbol);
+
   if (isCircleWallet()) {
+    const walletAddress = localStorage.getItem("proofpay-wallet");
     const transaction = await executeCircleProofPay({
-      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      contractAddress: asset.escrowAddress,
       abiFunctionSignature: "confirmDelivery(string)",
       abiParameters: [escrowId],
+      display: {
+        title: "Confirm Delivery",
+        subtitle:
+          "Send an on-chain delivery signal to the ProofPay escrow. This does not release or transfer the locked USDC.",
+        amount: "0",
+        symbol: asset.symbol,
+        fromLabel: "Confirming seller wallet",
+        from: walletAddress,
+        contractLabel: "Verified contract",
+        contractName: "ProofPay Escrow",
+        totalLabel: "Funds moved",
+        total: `0 ${asset.symbol} — status update only`,
+        confirmLabel: "Confirm Delivery",
+        action: "Confirm delivery status",
+        details: [
+          `Escrow ID: ${escrowId}`,
+          "Network: Arc Testnet",
+          "Action: Mark order as delivered",
+          `Locked ${asset.symbol}: Not released`,
+          "Funds movement: None",
+        ],
+      },
     });
     return transaction.hash;
   }
 
   try {
-    const { escrow } = await getContracts();
+    const { escrow } = await getContracts(assetSymbol);
     const transaction = await escrow.confirmDelivery(escrowId, {
       gasLimit: ARC_STATUS_UPDATE_GAS_LIMIT,
     });
@@ -384,20 +542,31 @@ export async function confirmDeliveryOnChain(escrowId) {
   }
 }
 
-export async function releaseFundsOnChain(escrowId, onSubmitted) {
+export async function releaseFundsOnChain(
+  escrowId,
+  onSubmitted,
+  assetSymbol = "USDC"
+) {
+  const asset = getEscrowAsset(assetSymbol);
+
   if (isCircleWallet()) {
     const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
     const readOnlyEscrow = new Contract(
-      PROOFPAY_ESCROW_ADDRESS,
+      asset.escrowAddress,
       ESCROW_ABI,
       provider
     );
-    const onChainEscrow = await readOnlyEscrow.getEscrow(escrowId);
-    const releaseAmount = formatUnits(onChainEscrow.amount, USDC_DECIMALS);
+    const onChainEscrow = await readEscrowWithRetry(
+      escrowId,
+      readOnlyEscrow,
+      asset.escrowAddress
+    );
+    const releaseAmount = formatUnits(onChainEscrow.amount, asset.decimals);
     const sellerAddress = onChainEscrow.seller;
     const walletAddress = localStorage.getItem("proofpay-wallet");
+    validateReleaseRequest(onChainEscrow, walletAddress);
     const transaction = await executeCircleProofPay({
-      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      contractAddress: asset.escrowAddress,
       abiFunctionSignature: "releaseFunds(string)",
       abiParameters: [escrowId],
       onSubmitted,
@@ -406,7 +575,7 @@ export async function releaseFundsOnChain(escrowId, onSubmitted) {
         subtitle:
           "Authorize the escrow contract to release its locked funds to the seller.",
         amount: releaseAmount,
-        symbol: "USDC",
+        symbol: asset.symbol,
         fromLabel: "Authorizing wallet",
         from: walletAddress,
         contractLabel: "Verified contract",
@@ -428,10 +597,31 @@ export async function releaseFundsOnChain(escrowId, onSubmitted) {
   }
 
   try {
-    const { escrow } = await getContracts();
-    const transaction = await escrow.releaseFunds(escrowId, {
-      gasLimit: ARC_STATUS_UPDATE_GAS_LIMIT,
-    });
+    const { address, escrow } = await getContracts(assetSymbol);
+    const onChainEscrow = await readEscrowWithRetry(
+      escrowId,
+      escrow,
+      asset.escrowAddress
+    );
+    validateReleaseRequest(onChainEscrow, address);
+    let transaction;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        transaction = await escrow.releaseFunds(escrowId, {
+          gasLimit: ARC_STATUS_UPDATE_GAS_LIMIT,
+        });
+        break;
+      } catch (error) {
+        if (attempt === 0 && isTransientArcCallError(error)) {
+          await wait(700);
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
     onSubmitted?.(transaction.hash);
     await transaction.wait();
     return transaction.hash;
@@ -440,10 +630,12 @@ export async function releaseFundsOnChain(escrowId, onSubmitted) {
   }
 }
 
-export async function refundOnChain(escrowId) {
+export async function refundOnChain(escrowId, assetSymbol = "USDC") {
+  const asset = getEscrowAsset(assetSymbol);
+
   if (isCircleWallet()) {
     const transaction = await executeCircleProofPay({
-      contractAddress: PROOFPAY_ESCROW_ADDRESS,
+      contractAddress: asset.escrowAddress,
       abiFunctionSignature: "refund(string)",
       abiParameters: [escrowId],
     });
@@ -451,7 +643,7 @@ export async function refundOnChain(escrowId) {
   }
 
   try {
-    const { escrow } = await getContracts();
+    const { escrow } = await getContracts(assetSymbol);
     const transaction = await escrow.refund(escrowId);
     await transaction.wait();
     return transaction.hash;
@@ -460,15 +652,17 @@ export async function refundOnChain(escrowId) {
   }
 }
 
-export async function getEscrowOnChain(escrowId) {
+export async function getEscrowOnChain(escrowId, assetSymbol = "USDC") {
+  const asset = getEscrowAsset(assetSymbol);
+
   try {
-    const { escrow } = await getContracts();
+    const { escrow } = await getContracts(assetSymbol);
     const result = await escrow.getEscrow(escrowId);
 
     return {
       buyer: result.buyer,
       seller: result.seller,
-      amount: formatUnits(result.amount, USDC_DECIMALS),
+      amount: formatUnits(result.amount, asset.decimals),
       status: Number(result.status),
     };
   } catch (error) {
