@@ -55,7 +55,7 @@ export default function ActiveOrders() {
 
       const transactionHash = await releaseFundsOnChain(order.escrowId, () => {
         setReleaseMessage("Transaction submitted. Waiting for confirmation...");
-      });
+      }, order.assetSymbol);
 
       await api.post(`/escrow/${order.escrowId}/release`, {
         transactionHash,
@@ -67,7 +67,7 @@ export default function ActiveOrders() {
       await loadOrders();
     } catch (releaseError) {
       setReleaseMessage("");
-      setError(releaseError.message || "Unable to release USDC.");
+      setError(releaseError.message || `Unable to release ${order.assetSymbol || "USDC"}.`);
     } finally {
       setReleasingId("");
     }
@@ -80,7 +80,7 @@ export default function ActiveOrders() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">{isSellerRole ? "Active Sales" : "Active Purchases"}</h1>
-            <p className="mt-2 text-slate-600">{isSellerRole ? "Confirm delivery after the buyer has locked USDC." : "Track locked funds and release payment after delivery."}</p>
+            <p className="mt-2 text-slate-600">{isSellerRole ? "Confirm delivery after the buyer has locked the selected asset." : "Track locked funds and release payment after delivery."}</p>
           </div>
           <button onClick={() => navigate(isSellerRole ? "/dashboard/selling" : "/dashboard/buying")} className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">← {isSellerRole ? "Selling Escrows" : "Buying Escrows"}</button>
         </div>
@@ -97,7 +97,7 @@ export default function ActiveOrders() {
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
               <div className="text-4xl">📦</div>
               <h2 className="mt-5 text-2xl font-bold text-slate-900">No active {isSellerRole ? "sales" : "purchases"}</h2>
-              <p className="mt-2 text-slate-600">Live escrow records will appear here after USDC is locked.</p>
+              <p className="mt-2 text-slate-600">Live escrow records will appear here after the selected asset is locked.</p>
             </div>
           )}
 
@@ -141,7 +141,7 @@ export default function ActiveOrders() {
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     {buyerMustRelease
-                      ? "Open this escrow, review the delivery, and release the USDC payment to the seller."
+                      ? `Open this escrow, review the delivery, and release the ${order.assetSymbol || "USDC"} payment to the seller.`
                       : "The buyer has been notified that the delivery is complete."}
                   </p>
                 </div>
@@ -149,7 +149,7 @@ export default function ActiveOrders() {
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Detail label={isSellerRole ? "Buyer" : "Seller"} value={isSellerRole ? order.buyerName : order.sellerName} />
-                <Detail label="Amount" value={`${order.amount} USDC`} />
+                <Detail label="Amount" value={`${order.amount} ${order.assetSymbol || "USDC"}`} />
                 <Detail label="Created" value={formatDate(order.createdAt)} />
                 <Detail
                   label="Next step"
@@ -167,7 +167,7 @@ export default function ActiveOrders() {
               {order.depositTransactionHash && (
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 p-4">
                   <div>
-                    <p className="font-bold text-green-800">✓ USDC deposit successful</p>
+                    <p className="font-bold text-green-800">✓ {order.assetSymbol || "USDC"} deposit successful</p>
                     <p className="mt-1 text-sm text-green-700">Funds are locked in the Arc Testnet escrow contract.</p>
                   </div>
                   <a href={`https://testnet.arcscan.app/tx/${order.depositTransactionHash}`} target="_blank" rel="noreferrer" className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50">

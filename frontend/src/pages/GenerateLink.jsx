@@ -165,7 +165,7 @@ export default function GenerateLink() {
 
               <div className="flex justify-between">
                 <span className="text-slate-500">Amount</span>
-                <strong>{escrowData.amount} USDC</strong>
+                <strong>{escrowData.amount} {escrowData.assetSymbol || "USDC"}</strong>
               </div>
 
             </div>
@@ -241,7 +241,7 @@ export default function GenerateLink() {
             <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-700">
               <li>Copy or share the secure link with the seller.</li>
               <li>The seller connects their wallet and accepts the deal.</li>
-              <li>Verify the seller code, then deposit test USDC.</li>
+              <li>Verify the seller code, then deposit {escrowData.assetSymbol || "USDC"}.</li>
 
             </ol>
 

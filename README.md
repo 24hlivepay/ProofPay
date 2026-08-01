@@ -66,6 +66,11 @@ React + Vite frontend
 | Chain ID | `5042002` |
 | ProofPay escrow | `0xCd0f43E573899809ff96C560439570A760698C9a` |
 | Test USDC | `0x3600000000000000000000000000000000000000` |
+| EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` |
+| cirBTC | `0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF` |
+| ProofPay USDC Escrow | `0xCd0f43E573899809ff96C560439570A760698C9a` |
+| ProofPay EURC Escrow | `0xa4322D8ba3E040A3028FD6ABaC3c6a5625ed4ca7` |
+| ProofPay cirBTC Escrow | `0x8bfeD6F70Eb595946543b192b6E63d75A0bBEf4B` |
 
 The contract uses `SafeERC20`, `ReentrancyGuard`, participant-only state transitions, and an owner-controlled dispute resolution path.
 
@@ -78,6 +83,23 @@ foundry/     Foundry deployment and test workspace
 frontend/    React/Vite web application
 backend/     Express API and database integration
 vercel.json  Multi-service production configuration
+
+### Deploy EURC and cirBTC escrow contracts
+
+Use the same deployer account that owns the existing USDC escrow. Keep the
+private key in an encrypted Foundry keystore; do not commit it to the project.
+
+```bash
+cast wallet import proofpay-deployer --interactive
+forge script script/DeployAssetEscrows.s.sol:DeployAssetEscrows \
+  --root foundry \
+  --rpc-url arc \
+  --account proofpay-deployer \
+  --broadcast
+```
+
+Copy the two resulting addresses into `frontend/.env` as
+`VITE_EURC_ESCROW_ADDRESS` and `VITE_CIRBTC_ESCROW_ADDRESS`.
 ```
 
 ## Local setup

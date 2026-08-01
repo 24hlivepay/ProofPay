@@ -7,6 +7,7 @@ import {
   verifyCircleEmailOtp,
 } from "../circle/circleConfig";
 import api from "../services/api";
+import { saveCircleAuthSession } from "../services/wallet";
 
 function findArcWallet(wallets = []) {
   return wallets.find((wallet) => wallet.blockchain === "ARC-TESTNET");
@@ -56,7 +57,7 @@ export default function OtpVerification() {
     localStorage.setItem("proofpay-wallet", wallet.address);
     localStorage.setItem("proofpay-wallet-type", "circle");
     localStorage.setItem("proofpay-wallet-session", JSON.stringify(session));
-    sessionStorage.setItem("proofpay-circle-auth", JSON.stringify(auth));
+    saveCircleAuthSession(auth);
     sessionStorage.removeItem("proofpay-circle-otp-session");
   }
 

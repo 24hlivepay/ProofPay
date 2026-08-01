@@ -1,5 +1,6 @@
 import api from "./api";
 import { executeCircleChallenge } from "../circle/circleConfig";
+import { getCircleAuthSession } from "./wallet";
 
 const SUCCESS_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILURE_STATES = new Set(["CANCELLED", "DENIED", "FAILED"]);
@@ -13,9 +14,7 @@ function getCircleSession() {
   let wallet;
 
   try {
-    auth = JSON.parse(
-      sessionStorage.getItem("proofpay-circle-auth") || "null"
-    );
+    auth = getCircleAuthSession();
     wallet = JSON.parse(
       localStorage.getItem("proofpay-wallet-session") || "null"
     );

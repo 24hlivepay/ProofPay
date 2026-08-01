@@ -5,6 +5,7 @@ import PrimaryButton from "../components/PrimaryButton";
 import { sendCircleToken } from "../services/circleTransactions";
 import {
   connectWallet,
+  getCircleAuthSession,
   getConnectedWallet,
   getWalletSession,
 } from "../services/wallet";
@@ -105,9 +106,7 @@ export default function CircleWallet() {
       }
 
       if (!session?.walletId) return;
-      const auth = JSON.parse(
-        sessionStorage.getItem("proofpay-circle-auth") || "null"
-      );
+      const auth = getCircleAuthSession();
       if (!auth?.userToken) {
         throw new Error("Circle session expired.");
       }

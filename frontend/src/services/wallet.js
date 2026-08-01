@@ -122,9 +122,9 @@ export async function connectWalletWithOptions({
 } = {}) {
   if (walletType === "circle") {
     const session = getWalletSession();
-    const auth = sessionStorage.getItem("proofpay-circle-auth");
+    const auth = getCircleAuthSession();
 
-    if (!session?.address || !session?.walletId || !auth) {
+    if (!session?.address || !session?.walletId || !auth?.userToken) {
       throw new Error(
         "Your Circle wallet session has expired. Sign in with email again."
       );
@@ -224,6 +224,43 @@ export function getWalletSession() {
   }
 }
 
+export function saveCircleAuthSession(auth) {
+  const persistedAuth = {
+    ...auth,
+    savedAt: Date.now(),
+  };
+
+  localStorage.setItem(
+    "proofpay-circle-auth",
+    JSON.stringify(persistedAuth)
+  );
+  sessionStorage.setItem(
+    "proofpay-circle-auth",
+    JSON.stringify(persistedAuth)
+  );
+}
+
+export function getCircleAuthSession() {
+  try {
+    const rawAuth =
+      sessionStorage.getItem("proofpay-circle-auth") ||
+      localStorage.getItem("proofpay-circle-auth");
+    const auth = JSON.parse(rawAuth || "null");
+
+    if (auth?.userToken && auth?.encryptionKey) {
+      sessionStorage.setItem(
+        "proofpay-circle-auth",
+        JSON.stringify(auth)
+      );
+      return auth;
+    }
+  } catch {
+    // Invalid persisted auth is cleared by the normal sign-out flow.
+  }
+
+  return null;
+}
+
 export async function disconnectWallet() {
   const walletType = localStorage.getItem("proofpay-wallet-type") || "metamask";
   const ethereum = walletType === "circle" ? null : await getWalletProvider(walletType);
@@ -243,6 +280,7 @@ export async function disconnectWallet() {
   localStorage.removeItem("proofpay-wallet-session");
   localStorage.removeItem("proofpay-wallet-type");
   localStorage.removeItem("proofpay-email");
+  localStorage.removeItem("proofpay-circle-auth");
   sessionStorage.removeItem("proofpay-circle-auth");
   sessionStorage.removeItem("proofpay-circle-otp-session");
 }

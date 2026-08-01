@@ -368,20 +368,50 @@ const PROOFPAY_ESCROW_ADDRESS =
   "0xCd0f43E573899809ff96C560439570A760698C9a";
 const ARC_TESTNET_USDC_ADDRESS =
   "0x3600000000000000000000000000000000000000";
+const PROOFPAY_EURC_ESCROW_ADDRESS =
+  "0xa4322D8ba3E040A3028FD6ABaC3c6a5625ed4ca7";
+const ARC_TESTNET_EURC_ADDRESS =
+  "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a";
+const PROOFPAY_CIRBTC_ESCROW_ADDRESS =
+  "0x8bfeD6F70Eb595946543b192b6E63d75A0bBEf4B";
+const ARC_TESTNET_CIRBTC_ADDRESS =
+  "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
+const escrowFunctions = new Set([
+  "createEscrow(string,address,uint256)",
+  "confirmDelivery(string)",
+  "releaseFunds(string)",
+  "refund(string)",
+]);
 const CIRCLE_CONTRACT_ALLOWLIST = new Map([
   [
     PROOFPAY_ESCROW_ADDRESS.toLowerCase(),
-    new Set([
-      "createEscrow(string,address,uint256)",
-      "confirmDelivery(string)",
-      "releaseFunds(string)",
-      "refund(string)",
-    ]),
+    escrowFunctions,
   ],
   [
     ARC_TESTNET_USDC_ADDRESS.toLowerCase(),
     new Set(["approve(address,uint256)"]),
   ],
+  [PROOFPAY_EURC_ESCROW_ADDRESS.toLowerCase(), escrowFunctions],
+  [ARC_TESTNET_EURC_ADDRESS.toLowerCase(), new Set(["approve(address,uint256)"])],
+  [PROOFPAY_CIRBTC_ESCROW_ADDRESS.toLowerCase(), escrowFunctions],
+  [ARC_TESTNET_CIRBTC_ADDRESS.toLowerCase(), new Set(["approve(address,uint256)"])],
+]);
+const ESCROW_ASSETS = new Map([
+  ["USDC", {
+    decimals: 6,
+    tokenAddress: ARC_TESTNET_USDC_ADDRESS,
+    escrowContractAddress: PROOFPAY_ESCROW_ADDRESS,
+  }],
+  ["EURC", {
+    decimals: 6,
+    tokenAddress: ARC_TESTNET_EURC_ADDRESS,
+    escrowContractAddress: PROOFPAY_EURC_ESCROW_ADDRESS,
+  }],
+  ["cirBTC", {
+    decimals: 8,
+    tokenAddress: ARC_TESTNET_CIRBTC_ADDRESS,
+    escrowContractAddress: PROOFPAY_CIRBTC_ESCROW_ADDRESS,
+  }],
 ]);
 
 function getCircleUserToken(req, res) {
@@ -675,12 +705,26 @@ app.get("/", (req, res) => {
 */
 
 app.post("/api/escrow", async (req, res) => {
+  const assetSymbol = req.body.assetSymbol || "USDC";
+  const asset = ESCROW_ASSETS.get(assetSymbol);
+
+  if (!asset) {
+    return res.status(400).json({
+      success: false,
+      message: "Choose USDC, EURC, or cirBTC for this escrow.",
+    });
+  }
+
   const escrowId =
     "PP-" +
     Math.random().toString(36).substring(2, 8).toUpperCase();
 
   const escrow = {
     ...req.body,
+    assetSymbol,
+    assetDecimals: asset.decimals,
+    tokenAddress: asset.tokenAddress,
+    escrowContractAddress: asset.escrowContractAddress,
     escrowId,
     status: "Waiting Seller",
     verificationCode: "",
@@ -810,6 +854,8 @@ app.post("/api/escrow/:id/accept", async (req, res) => {
 
   escrow.status = "Seller Accepted";
   escrow.sellerWallet = sellerWallet;
+  escrow.sellerVerified = false;
+  escrow.sellerVerifiedAt = null;
   escrow.verificationCode = Math.floor(
     100000 + Math.random() * 900000
   ).toString();
@@ -825,6 +871,57 @@ app.post("/api/escrow/:id/accept", async (req, res) => {
     escrow,
   });
 
+});
+
+/*
+|--------------------------------------------------------------------------
+| Seller Verification
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/escrow/:id/verify-seller", async (req, res) => {
+  const { verificationCode } = req.body || {};
+  const allEscrows = await loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+
+  if (!escrow) {
+    return res.status(404).json({
+      success: false,
+      message: "Escrow Not Found",
+    });
+  }
+
+  if (escrow.status === "Cancelled") {
+    return res.status(400).json({
+      success: false,
+      message: "This escrow request has been cancelled.",
+    });
+  }
+
+  if (escrow.sellerVerified) {
+    return res.json({ success: true, escrow });
+  }
+
+  if (
+    !verificationCode ||
+    String(verificationCode).trim() !== String(escrow.verificationCode || "")
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "The verification code is incorrect. Please ask the seller to share it again.",
+    });
+  }
+
+  escrow.sellerVerified = true;
+  escrow.sellerVerifiedAt = Date.now();
+
+  await saveEscrows(allEscrows);
+  escrows[req.params.id] = escrow;
+
+  return res.json({
+    success: true,
+    escrow,
+  });
 });
 
 /*
@@ -861,6 +958,13 @@ app.post("/api/escrow/:id/deposit", async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "The seller must accept the deal before you can deposit USDC.",
+    });
+  }
+
+  if (!escrow.sellerVerified) {
+    return res.status(400).json({
+      success: false,
+      message: "Verify the seller before depositing USDC.",
     });
   }
 

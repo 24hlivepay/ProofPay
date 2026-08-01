@@ -16,6 +16,10 @@ export function EscrowProvider({ children }) {
 
     amount: "",
 
+    assetSymbol: "USDC",
+
+    assetDecimals: 6,
+
     description: "",
 
     expiry: "",

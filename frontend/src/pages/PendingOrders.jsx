@@ -118,7 +118,7 @@ export default function PendingOrders() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">{isSellerRole ? "Pending Sales" : "Pending Orders"}</h1>
-            <p className="mt-2 text-slate-600">{isSellerRole ? "Sales waiting for the buyer to lock USDC." : "Escrows waiting for seller acceptance or buyer deposit."}</p>
+            <p className="mt-2 text-slate-600">{isSellerRole ? "Sales waiting for the buyer to lock the selected asset." : "Escrows waiting for seller acceptance or buyer deposit."}</p>
           </div>
           <button onClick={() => navigate(isSellerRole ? "/dashboard/selling" : "/dashboard/buying")} className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">← {isSellerRole ? "Selling Escrows" : "Buying Escrows"}</button>
         </div>
@@ -141,7 +141,7 @@ export default function PendingOrders() {
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Detail label={isSellerRole ? "Buyer" : "Seller"} value={isSellerRole ? order.buyerName : order.sellerName} />
-                <Detail label="Amount" value={`${order.amount} USDC`} />
+                <Detail label="Amount" value={`${order.amount} ${order.assetSymbol || "USDC"}`} />
                 <Detail label="Created" value={new Date(order.createdAt).toLocaleDateString()} />
                 <CountdownDetail order={order} now={now} />
               </div>
@@ -154,7 +154,7 @@ export default function PendingOrders() {
                 <div className="mt-7 grid gap-3 sm:grid-cols-3">
                   <button onClick={() => cancelOrder(order)} className="rounded-xl border border-red-200 py-3 font-semibold text-red-600 hover:bg-red-50">Cancel Order</button>
                   <button onClick={() => copySellerLink(order)} className="rounded-xl border border-blue-200 py-3 font-semibold text-blue-600 hover:bg-blue-50">{copiedId === order.escrowId ? "Link Copied" : "Copy Seller Link"}</button>
-                  <button onClick={() => continueOrder(order)} className="rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700">{order.status === "Seller Accepted" ? "Deposit USDC" : "Open Order"}</button>
+                  <button onClick={() => continueOrder(order)} className="rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700">{order.status === "Seller Accepted" ? `Deposit ${order.assetSymbol || "USDC"}` : "Open Order"}</button>
                 </div>
               )}
             </article>

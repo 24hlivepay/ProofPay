@@ -4,10 +4,8 @@ import Navbar from "../components/Navbar";
 import PrimaryButton from "../components/PrimaryButton";
 import { useEscrow } from "../context/EscrowContext";
 import api from "../services/api";
-import { PROOFPAY_ESCROW_ADDRESS } from "../services/proofpayContract";
 import { connectWalletWithOptions } from "../services/wallet";
-
-const ARC_SCAN_CONTRACT_URL = `https://testnet.arcscan.app/address/${PROOFPAY_ESCROW_ADDRESS}`;
+import { getEscrowAsset } from "../config/escrowAssets";
 
 export default function SellerAccept() {
   const navigate = useNavigate();
@@ -19,6 +17,8 @@ export default function SellerAccept() {
   const [connecting, setConnecting] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState("");
+  const asset = getEscrowAsset(escrowData.assetSymbol);
+  const contractUrl = `https://testnet.arcscan.app/address/${asset.escrowAddress}`;
 
   useEffect(() => {
     async function loadEscrow() {
@@ -132,17 +132,17 @@ export default function SellerAccept() {
                 <SummaryRow label="Product / Service" value={escrow.productName} />
                 {escrow.productId && <SummaryRow label="Product ID" value={escrow.productId} />}
                 {escrow.description && <SummaryRow label="Order details" value={escrow.description} />}
-                <SummaryRow label="Amount" value={escrow.amount ? `${escrow.amount} test USDC` : "—"} />
+                <SummaryRow label="Amount" value={escrow.amount ? `${escrow.amount} ${escrow.assetSymbol || "USDC"}` : "—"} />
                 <SummaryRow label="Status" value="Awaiting your review" valueClassName="text-amber-700" />
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-slate-700">
-              <strong className="text-slate-900">Safety note:</strong> ProofPay never asks for your seed phrase or private key. This is a testnet deal using test USDC only.
+              <strong className="text-slate-900">Safety note:</strong> ProofPay never asks for your seed phrase or private key. This is an Arc Testnet deal using {escrow.assetSymbol || "USDC"}.
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <a href={ARC_SCAN_CONTRACT_URL} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-5 py-4 text-center font-semibold text-slate-700 transition hover:bg-slate-50">
+              <a href={contractUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-5 py-4 text-center font-semibold text-slate-700 transition hover:bg-slate-50">
                 View contract on Arcscan ↗
               </a>
               <PrimaryButton onClick={() => setReviewing(true)}>Review Deal</PrimaryButton>
@@ -180,7 +180,7 @@ export default function SellerAccept() {
                 />
                 <SummaryRow label="Seller" value={escrow.sellerName} />
                 <SummaryRow label="Product / Service" value={escrow.productName} />
-                <SummaryRow label="Amount" value={escrow.amount ? `${escrow.amount} USDC` : "—"} />
+                <SummaryRow label="Amount" value={escrow.amount ? `${escrow.amount} ${escrow.assetSymbol || "USDC"}` : "—"} />
                 <SummaryRow label="Network" value="Arc Testnet" />
                 <SummaryRow label="Escrow ID" value={escrow.escrowId} />
               </div>
