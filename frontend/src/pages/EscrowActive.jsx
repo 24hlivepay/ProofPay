@@ -67,7 +67,7 @@ export default function EscrowActive() {
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><h1 className="text-3xl font-bold">Escrow Active</h1><p className="mt-2 text-slate-600">Manage the live ARC Testnet USDC escrow.</p></div>
+            <div><h1 className="text-3xl font-bold">Escrow Active</h1><p className="mt-2 text-slate-600">Manage the live ARC Testnet {escrowData.assetSymbol || "USDC"} escrow.</p></div>
             <span className={`rounded-full px-5 py-2 font-semibold ${delivered ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{delivered ? "Delivered" : `${escrowData.assetSymbol || "USDC"} Locked`}</span>
           </div>
 
@@ -82,7 +82,7 @@ export default function EscrowActive() {
           </div>
 
           {escrowData.depositTransactionHash && (
-            <TransactionProof hash={escrowData.depositTransactionHash} />
+            <TransactionProof hash={escrowData.depositTransactionHash} assetSymbol={escrowData.assetSymbol} />
           )}
 
           <div className={`mt-8 rounded-2xl border p-6 ${delivered ? "border-blue-200 bg-blue-50" : "border-yellow-200 bg-yellow-50"}`}>
@@ -146,12 +146,12 @@ function SummaryRow({ label, value }) {
   return <div className="flex gap-6 justify-between"><span className="text-slate-500">{label}</span><strong className="break-all text-right">{value || "—"}</strong></div>;
 }
 
-function TransactionProof({ hash }) {
+function TransactionProof({ hash, assetSymbol = "USDC" }) {
   return (
     <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-green-200 bg-green-50 p-5">
       <div>
         <p className="font-bold text-green-800">✓ Deposit confirmed on Arc Testnet</p>
-        <p className="mt-1 text-sm text-green-700">The buyer's USDC lock transaction is recorded on-chain.</p>
+        <p className="mt-1 text-sm text-green-700">The buyer's {assetSymbol} lock transaction is recorded on-chain.</p>
       </div>
       <a href={`https://testnet.arcscan.app/tx/${hash}`} target="_blank" rel="noreferrer" className="rounded-xl bg-white px-4 py-2 font-bold text-blue-700 shadow-sm hover:bg-blue-50">
         View on Arcscan ↗

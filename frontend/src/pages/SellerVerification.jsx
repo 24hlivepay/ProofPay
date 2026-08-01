@@ -94,13 +94,13 @@ export default function SellerVerification() {
       <div className="text-5xl">🔒</div>
       <h1 className="mt-4 text-3xl font-bold text-green-700">{escrowData.assetSymbol || "USDC"} Locked</h1>
       <p className="mt-5 text-lg text-slate-600">The buyer’s {escrowData.assetSymbol || "USDC"} is locked in the ARC Testnet escrow contract.</p>
-      {escrowData.depositTransactionHash && <TransactionProof hash={escrowData.depositTransactionHash} />}
+      {escrowData.depositTransactionHash && <TransactionProof hash={escrowData.depositTransactionHash} assetSymbol={escrowData.assetSymbol} />}
       <div className="mt-10"><PrimaryButton onClick={completeDelivery} disabled={submitting}>{submitting ? "Confirming Delivery..." : "Delivery Completed"}</PrimaryButton></div>
     </div>
   ) : escrowData.status === "Delivered" ? (
-    <StatusCard title="Delivery Confirmed" message="The buyer can now release the USDC from the smart contract." />
+    <StatusCard title="Delivery Confirmed" message={`The buyer can now release the ${escrowData.assetSymbol || "USDC"} from the smart contract.`} />
   ) : escrowData.status === "Released" ? (
-    <StatusCard title="Payment Received" message="The buyer released the USDC. Payment has been sent to your seller wallet." />
+    <StatusCard title="Payment Received" message={`The buyer released the ${escrowData.assetSymbol || "USDC"}. Payment has been sent to your seller wallet.`} />
   ) : (
     <StatusCard title="Escrow status updated" message={`Current status: ${escrowData.status || "Unknown"}`} />
   );
@@ -149,11 +149,11 @@ function StatusCard({ title, message, error = false }) {
   );
 }
 
-function TransactionProof({ hash }) {
+function TransactionProof({ hash, assetSymbol = "USDC" }) {
   return (
     <div className="mx-auto mt-7 max-w-xl rounded-2xl border border-green-200 bg-green-50 p-5 text-left">
       <p className="font-bold text-green-800">✓ Buyer deposit confirmed on Arc Testnet</p>
-      <p className="mt-1 text-sm text-green-700">Open the explorer to verify the locked USDC before confirming delivery.</p>
+      <p className="mt-1 text-sm text-green-700">Open the explorer to verify the locked {assetSymbol} before confirming delivery.</p>
       <a href={`https://testnet.arcscan.app/tx/${hash}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-xl bg-white px-4 py-2 font-bold text-blue-700 shadow-sm hover:bg-blue-50">
         View deposit on Arcscan ↗
       </a>
