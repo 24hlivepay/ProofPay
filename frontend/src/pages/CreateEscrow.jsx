@@ -31,7 +31,7 @@ export default function CreateEscrow() {
   const [error, setError] = useState("");
   const selectedAsset = getEscrowAsset(assetSymbol);
 
-  async function loadSelectedBalance() {
+  async function loadSelectedBalance(asset = selectedAsset) {
     try {
       setBalanceLoading(true);
       setError("");
@@ -50,7 +50,7 @@ export default function CreateEscrow() {
           headers: { "X-User-Token": auth.userToken },
         });
         const matches = (response.data.data?.tokenBalances || []).filter(
-          (item) => item?.token?.symbol === selectedAsset.symbol
+          (item) => item?.token?.symbol === asset.symbol
         );
         balance = matches.reduce(
           (largest, item) => Number(item.amount || 0) > Number(largest) ? item.amount : largest,
@@ -59,17 +59,17 @@ export default function CreateEscrow() {
       } else {
         const { address, provider } = await connectWallet();
 
-        if (selectedAsset.isNative) {
+        if (asset.isNative) {
           balance = formatUnits(await provider.getBalance(address), 18);
         } else {
           const token = new Contract(
-            selectedAsset.tokenAddress,
+            asset.tokenAddress,
             BALANCE_ABI,
             provider
           );
           balance = formatUnits(
             await token.balanceOf(address),
-            selectedAsset.decimals
+            asset.decimals
           );
         }
       }
@@ -77,7 +77,7 @@ export default function CreateEscrow() {
       setAssetBalance(String(balance || "0"));
       return String(balance || "0");
     } catch (balanceError) {
-      setError(balanceError.message || `Unable to load ${selectedAsset.symbol} balance.`);
+      setError(balanceError.message || `Unable to load ${asset.symbol} balance.`);
       return null;
     } finally {
       setBalanceLoading(false);
@@ -175,7 +175,7 @@ export default function CreateEscrow() {
                   </label>
                   <div className="ml-auto flex items-center gap-2">
                     <span className="text-slate-500">
-                      {balanceLoading ? "Loading…" : `${assetBalance || "—"} ${selectedAsset.symbol}`}
+                      {balanceLoading ? "Loading…" : `${assetBalance || "0"} ${selectedAsset.symbol}`}
                     </span>
                     <button
                       type="button"
@@ -192,9 +192,11 @@ export default function CreateEscrow() {
                     id="escrow-asset"
                     value={assetSymbol}
                     onChange={(event) => {
-                      setAssetSymbol(event.target.value);
+                      const nextAsset = getEscrowAsset(event.target.value);
+                      setAssetSymbol(nextAsset.symbol);
                       setAmount("");
                       setAssetBalance("");
+                      loadSelectedBalance(nextAsset);
                     }}
                     className="min-w-0 flex-1 appearance-auto bg-white py-2 text-lg font-bold outline-none"
                   >
