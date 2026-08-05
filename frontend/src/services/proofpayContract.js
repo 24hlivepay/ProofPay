@@ -351,13 +351,27 @@ export async function fundEscrow({ escrowId, sellerAddress, amount, assetSymbol 
   if (isCircleWallet()) {
     const walletAddress = localStorage.getItem("proofpay-wallet");
     const amountUnits = getAssetAmount(amount, asset.decimals);
-    const recovered = await recoverExistingEscrow({
-      escrowId,
-      buyerAddress: walletAddress,
-      sellerAddress,
-      amountUnits,
-      asset,
-    });
+    let recovered;
+
+    try {
+      recovered = await recoverExistingEscrow({
+        escrowId,
+        buyerAddress: walletAddress,
+        sellerAddress,
+        amountUnits,
+        asset,
+      });
+    } catch (error) {
+      // Circle wallets do not expose an injected RPC provider. A temporary
+      // browser-to-Arc read failure must not block a new deposit: the escrow
+      // contract still rejects duplicate IDs and mismatched requests on-chain.
+      if (!error.message?.startsWith("Your payment has not started")) {
+        throw error;
+      }
+
+      console.warn("Circle escrow preflight was unavailable; continuing safely.", error);
+    }
+
     if (recovered) return recovered;
 
     // Do not preflight Circle wallets with ERC-20 balanceOf. Arc's native-USDC
