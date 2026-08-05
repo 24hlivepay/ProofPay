@@ -45,7 +45,7 @@ export default function EscrowActive() {
       setReleaseStage("confirm-wallet");
       const transactionHash = await releaseFundsOnChain(escrowData.escrowId, () => {
         setReleaseStage("processing");
-      }, escrowData.assetSymbol);
+      }, escrowData.assetSymbol, escrowData);
       const response = await api.post(`/escrow/${escrowData.escrowId}/release`, {
         transactionHash,
       });

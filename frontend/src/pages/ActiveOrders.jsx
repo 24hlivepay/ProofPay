@@ -68,7 +68,7 @@ export default function ActiveOrders() {
 
       const transactionHash = await releaseFundsOnChain(order.escrowId, () => {
         setActionMessage("Transaction submitted. Waiting for confirmation...");
-      }, order.assetSymbol);
+      }, order.assetSymbol, order);
 
       await api.post(`/escrow/${order.escrowId}/release`, {
         transactionHash,
