@@ -1028,6 +1028,7 @@ app.post("/api/escrow/:id/deposit", async (req, res) => {
 */
 
 app.post("/api/escrow/:id/delivered", async (req, res) => {
+  const { transactionHash } = req.body || {};
   const allEscrows = await loadEscrows();
   const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
 
@@ -1040,6 +1041,10 @@ app.post("/api/escrow/:id/delivered", async (req, res) => {
 
   escrow.status = "Delivered";
   escrow.deliveredAt = Date.now();
+
+  if (/^0x[a-fA-F0-9]{64}$/.test(transactionHash || "")) {
+    escrow.deliveryTransactionHash = transactionHash;
+  }
 
   const index = allEscrows.findIndex(
     (e) => e.escrowId === escrow.escrowId

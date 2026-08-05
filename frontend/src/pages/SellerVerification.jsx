@@ -61,7 +61,9 @@ export default function SellerVerification() {
         escrowData.escrowId,
         escrowData.assetSymbol
       );
-      const response = await api.post(`/escrow/${escrowData.escrowId}/delivered`);
+      const response = await api.post(`/escrow/${escrowData.escrowId}/delivered`, {
+        transactionHash,
+      });
       setEscrowData({ ...response.data.escrow, transactionHash });
     } catch (deliveryError) {
       setError(deliveryError.message || "Unable to confirm delivery.");

@@ -4,7 +4,10 @@ import Navbar from "../components/Navbar";
 import { useEscrow } from "../context/EscrowContext";
 import api from "../services/api";
 import { getConnectedWallet } from "../services/wallet";
-import { releaseFundsOnChain } from "../services/proofpayContract";
+import {
+  confirmDeliveryOnChain,
+  releaseFundsOnChain,
+} from "../services/proofpayContract";
 
 export default function ActiveOrders() {
   const navigate = useNavigate();
@@ -13,8 +16,9 @@ export default function ActiveOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [confirmingId, setConfirmingId] = useState("");
   const [releasingId, setReleasingId] = useState("");
-  const [releaseMessage, setReleaseMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
   const role = location.state?.role === "seller" ? "seller" : "buyer";
   const isSellerRole = role === "seller";
 
@@ -34,6 +38,15 @@ export default function ActiveOrders() {
 
   useEffect(() => {
     loadOrders();
+
+    const interval = window.setInterval(loadOrders, 4000);
+    const refreshOnFocus = () => loadOrders();
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
   }, [loadOrders]);
 
   function openOrder(order) {
@@ -51,25 +64,62 @@ export default function ActiveOrders() {
     try {
       setReleasingId(order.escrowId);
       setError("");
-      setReleaseMessage("Confirm the release transaction in your wallet.");
+      setActionMessage("Confirm the release transaction in your wallet.");
 
       const transactionHash = await releaseFundsOnChain(order.escrowId, () => {
-        setReleaseMessage("Transaction submitted. Waiting for confirmation...");
+        setActionMessage("Transaction submitted. Waiting for confirmation...");
       }, order.assetSymbol);
 
       await api.post(`/escrow/${order.escrowId}/release`, {
         transactionHash,
       });
 
-      setReleaseMessage(
+      setActionMessage(
         `${order.escrowId}: funds released successfully. The order is now completed.`
       );
       await loadOrders();
     } catch (releaseError) {
-      setReleaseMessage("");
+      setActionMessage("");
       setError(releaseError.message || `Unable to release ${order.assetSymbol || "USDC"}.`);
     } finally {
       setReleasingId("");
+    }
+  }
+
+  async function confirmOrderDelivery(order) {
+    if (!window.confirm(`Confirm that ${order.productName || "this order"} was delivered?`)) {
+      return;
+    }
+
+    try {
+      setConfirmingId(order.escrowId);
+      setError("");
+      setActionMessage("Confirm the delivery transaction in your wallet.");
+
+      const transactionHash = await confirmDeliveryOnChain(
+        order.escrowId,
+        order.assetSymbol
+      );
+      const response = await api.post(`/escrow/${order.escrowId}/delivered`, {
+        transactionHash,
+      });
+
+      setOrders((currentOrders) =>
+        currentOrders.map((currentOrder) =>
+          currentOrder.escrowId === order.escrowId
+            ? response.data.escrow
+            : currentOrder
+        )
+      );
+      setActionMessage(
+        `${order.escrowId}: delivery confirmed. The buyer can now release the funds.`
+      );
+      await loadOrders();
+    } catch (deliveryError) {
+      setActionMessage("");
+      setError(deliveryError.message || "Unable to confirm delivery.");
+    } finally {
+      setConfirmingId("");
     }
   }
 
@@ -86,9 +136,9 @@ export default function ActiveOrders() {
         </div>
 
         {error && <p className="mt-6 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
-        {releaseMessage && (
+        {actionMessage && (
           <p className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 font-semibold text-green-800">
-            {releaseMessage}
+            {actionMessage}
           </p>
         )}
 
@@ -175,26 +225,35 @@ export default function ActiveOrders() {
                   </a>
                 </div>
               )}
-              <button
-                onClick={() => buyerMustRelease
-                  ? releaseOrderFunds(order)
-                  : openOrder(order)
-                }
-                disabled={releasingId === order.escrowId}
-                className={`mt-7 w-full rounded-xl py-3 font-semibold text-white ${
-                  buyerMustRelease
-                    ? "bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                {releasingId === order.escrowId
-                  ? "Releasing Funds..."
-                  : buyerMustRelease
-                  ? "Release Funds Now"
-                  : isSellerRole
-                    ? "Manage Sale"
-                    : "Open Escrow"}
-              </button>
+              {(!isSellerRole || !deliveryConfirmed) && (
+                <button
+                  onClick={() => isSellerRole
+                    ? confirmOrderDelivery(order)
+                    : buyerMustRelease
+                      ? releaseOrderFunds(order)
+                      : openOrder(order)
+                  }
+                  disabled={
+                    confirmingId === order.escrowId ||
+                    releasingId === order.escrowId
+                  }
+                  className={`mt-7 w-full rounded-xl py-3 font-semibold text-white ${
+                    buyerMustRelease
+                      ? "bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                      : "bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  }`}
+                >
+                  {confirmingId === order.escrowId
+                    ? "Confirming Delivery..."
+                    : releasingId === order.escrowId
+                      ? "Releasing Funds..."
+                      : isSellerRole
+                        ? "Confirm Delivery"
+                        : buyerMustRelease
+                          ? "Release Funds Now"
+                          : "Open Escrow"}
+                </button>
+              )}
             </article>
             );
           })}
