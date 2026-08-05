@@ -221,10 +221,12 @@ async function readEscrowWithRetry(
     }
   }
 
-  throw new Error(
+  const readError = new Error(
     "Your payment has not started and no funds were deducted. Please wait a few seconds, then try again.",
     { cause: lastError }
   );
+  readError.code = "ARC_ESCROW_READ_UNAVAILABLE";
+  throw readError;
 }
 
 function validateReleaseRequest(onChainEscrow, buyerAddress) {
@@ -365,7 +367,7 @@ export async function fundEscrow({ escrowId, sellerAddress, amount, assetSymbol 
       // Circle wallets do not expose an injected RPC provider. A temporary
       // browser-to-Arc read failure must not block a new deposit: the escrow
       // contract still rejects duplicate IDs and mismatched requests on-chain.
-      if (!error.message?.startsWith("Your payment has not started")) {
+      if (error.code !== "ARC_ESCROW_READ_UNAVAILABLE") {
         throw error;
       }
 
@@ -560,7 +562,8 @@ export async function confirmDeliveryOnChain(escrowId, assetSymbol = "USDC") {
 export async function releaseFundsOnChain(
   escrowId,
   onSubmitted,
-  assetSymbol = "USDC"
+  assetSymbol = "USDC",
+  fallbackEscrow
 ) {
   const asset = getEscrowAsset(assetSymbol);
 
@@ -571,11 +574,39 @@ export async function releaseFundsOnChain(
       ESCROW_ABI,
       provider
     );
-    const onChainEscrow = await readEscrowWithRetry(
-      escrowId,
-      readOnlyEscrow,
-      asset.escrowAddress
-    );
+    let onChainEscrow;
+
+    try {
+      onChainEscrow = await readEscrowWithRetry(
+        escrowId,
+        readOnlyEscrow,
+        asset.escrowAddress
+      );
+    } catch (error) {
+      if (error.code !== "ARC_ESCROW_READ_UNAVAILABLE") {
+        throw error;
+      }
+
+      if (
+        fallbackEscrow?.status !== "Delivered" ||
+        !fallbackEscrow?.buyerWallet ||
+        !fallbackEscrow?.sellerWallet ||
+        !fallbackEscrow?.amount
+      ) {
+        throw new Error(
+          "ProofPay could not refresh this delivery. Return to Active Purchases and try again.",
+          { cause: error }
+        );
+      }
+
+      onChainEscrow = {
+        buyer: fallbackEscrow.buyerWallet,
+        seller: fallbackEscrow.sellerWallet,
+        amount: parseUnits(String(fallbackEscrow.amount), asset.decimals),
+        status: ON_CHAIN_STATUS.DELIVERED,
+      };
+      console.warn("Circle release preflight was unavailable; using verified order data.", error);
+    }
     const releaseAmount = formatUnits(onChainEscrow.amount, asset.decimals);
     const sellerAddress = onChainEscrow.seller;
     const walletAddress = localStorage.getItem("proofpay-wallet");
