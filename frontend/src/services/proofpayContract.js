@@ -115,6 +115,7 @@ function readableError(error) {
   if (
     message.startsWith("Buyer wallet") ||
     message.startsWith("Buyer wallet has") ||
+    message.startsWith("Your payment has not started") ||
     message.startsWith("Unable to read buyer USDC balance") ||
     message.startsWith("Arc Testnet could not read") ||
     message.startsWith("USDC approval failed") ||
@@ -221,7 +222,7 @@ async function readEscrowWithRetry(
   }
 
   throw new Error(
-    "Arc Testnet could not check this escrow after several attempts. No funds were moved. Please wait a moment and try again.",
+    "Your payment has not started and no funds were deducted. Please wait a few seconds, then try again.",
     { cause: lastError }
   );
 }

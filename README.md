@@ -10,26 +10,30 @@ Secure peer-to-peer USDC escrow on Arc Testnet.
 
 Peer-to-peer online deals often force one side to take the risk first: the buyer pays before delivery, or the seller delivers before payment. ProofPay replaces that trust gap with a transparent escrow flow where test USDC is held by a smart contract and released only after the seller confirms delivery and the buyer approves payment.
 
-## Mid-submission status
+## Final-submission status
 
-The public MVP currently supports the full happy-path transaction:
+The public Arc Testnet MVP supports the complete escrow lifecycle:
 
 1. A buyer creates an escrow request and shares a private review link.
 2. The seller connects a wallet, verifies the deal, and accepts or rejects it.
-3. After acceptance, the buyer deposits Arc Testnet USDC into the escrow contract.
+3. After acceptance, the buyer deposits Arc Testnet USDC, EURC, or cirBTC into the matching escrow contract.
 4. The seller confirms delivery.
 5. The buyer releases the locked funds to the seller.
 
-The web app also includes pending, active, completed, cancelled, and rejected order states; persistent off-chain order metadata; transaction links to Arcscan; and MetaMask and Rabby wallet support.
+The web app also includes pending, active, completed, cancelled, and rejected
+order states; persistent off-chain order metadata; transaction links to Arcscan;
+Circle email wallets; and MetaMask and Rabby support. Developer-led testing is
+complete and public testnet testing is ongoing.
 
-## Live checkpoint evidence
+## Live evidence
 
 - Public application deployed at [proofpay.online](https://proofpay.online)
 - Escrow contract deployed on Arc Testnet
-- MetaMask and Rabby wallet flows tested
+- Circle email wallet, MetaMask, and Rabby flows implemented and tested
 - Three completed end-to-end escrow tests across three wallets
 - Persistent order records stored in Neon Postgres
 - Frontend and backend deployed together through Vercel Services
+- Automated escrow lifecycle and authorization tests
 
 ## Architecture
 
@@ -83,6 +87,9 @@ foundry/     Foundry deployment and test workspace
 frontend/    React/Vite web application
 backend/     Express API and database integration
 vercel.json  Multi-service production configuration
+docs/        Configuration and judge-testing guides
+submission/  Final form copy and presentation artifacts
+```
 
 ### Deploy EURC and cirBTC escrow contracts
 
@@ -100,7 +107,6 @@ forge script script/DeployAssetEscrows.s.sol:DeployAssetEscrows \
 
 Copy the two resulting addresses into `frontend/.env` as
 `VITE_EURC_ESCROW_ADDRESS` and `VITE_CIRBTC_ESCROW_ADDRESS`.
-```
 
 ## Local setup
 
@@ -154,14 +160,32 @@ npm --prefix backend run dev
 npm --prefix frontend run dev
 ```
 
-## Roadmap
+## Validation
+
+Run the complete local readiness check from the repository root:
+
+```bash
+npm run validate
+```
+
+This runs frontend lint, a production build, 12 ProofPay escrow contract tests,
+and backend syntax checks. See [Testing and judge walkthrough](docs/TESTING.md)
+for the public smoke-test flow.
+
+## Production configuration
+
+Use [Configuration](docs/CONFIGURATION.md) to set Vercel, Circle, Neon, domain,
+and contract-deployment values in the correct service. Do not expose Circle API
+keys, database credentials, or deployer private keys in frontend variables.
+
+## Post-submission roadmap
 
 - Expand public wallet and device testing
-- Complete Circle wallet contract execution for the existing escrow actions
-- Harden failure, expiry, refund, and dispute paths
-- Add automated smart-contract and end-to-end test coverage
+- Expand automated browser-level end-to-end coverage
+- Complete an independent smart-contract security audit
+- Add multi-signature or decentralized dispute administration
 - Improve mobile onboarding and transaction guidance
-- Complete security review before any mainnet deployment
+- Complete security and operational reviews before any mainnet deployment
 
 ## License
 

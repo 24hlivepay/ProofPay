@@ -698,6 +698,30 @@ app.get("/", (req, res) => {
   });
 });
 
+app.get("/api/health", async (req, res) => {
+  try {
+    if (databasePool) {
+      await databasePool.query("SELECT 1");
+    }
+
+    res.json({
+      status: "ok",
+      service: "proofpay-backend",
+      database: databasePool ? "connected" : "local-file",
+      network: "Arc Testnet",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: "degraded",
+      service: "proofpay-backend",
+      database: "unavailable",
+      message: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 /*
 |--------------------------------------------------------------------------
 | Create Escrow

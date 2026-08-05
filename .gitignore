@@ -31,6 +31,7 @@
 **/dist/
 **/cache/
 **/out/
+/.tmp/
 
 # Local runtime data and one-off editor backups
 /backend/data/escrows.json

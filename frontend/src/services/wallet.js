@@ -281,6 +281,7 @@ export async function disconnectWallet() {
   localStorage.removeItem("proofpay-wallet-type");
   localStorage.removeItem("proofpay-email");
   localStorage.removeItem("proofpay-circle-auth");
+  localStorage.removeItem("proofpay-last-safe-route");
   sessionStorage.removeItem("proofpay-circle-auth");
   sessionStorage.removeItem("proofpay-circle-otp-session");
 }
