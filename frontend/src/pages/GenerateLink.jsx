@@ -37,7 +37,7 @@ export default function GenerateLink() {
 
       }, 2000);
 
-    } catch (error) {
+    } catch {
 
       alert("Unable to copy link.");
 

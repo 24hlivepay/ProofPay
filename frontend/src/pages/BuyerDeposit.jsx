@@ -20,6 +20,9 @@ export default function BuyerDeposit() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const networkCheckDelayed = error.startsWith(
+    "Your payment has not started and no funds were deducted."
+  );
   const walletLabel =
     localStorage.getItem("proofpay-wallet-type") === "circle"
       ? "Circle wallet"
@@ -194,14 +197,22 @@ export default function BuyerDeposit() {
           {verified && <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6 text-green-700">Seller verified. You can now lock the {escrowData.assetSymbol || "USDC"} in the live ARC Testnet contract.</div>}
           {error && (
             <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">
-              <p className="font-bold">Payment not completed</p>
+              <p className="font-bold">
+                {networkCheckDelayed
+                  ? "Arc network is temporarily busy"
+                  : "Payment not completed"}
+              </p>
               <p className="mt-1 leading-6">{error}</p>
             </div>
           )}
 
           <div className="mt-10">
             <PrimaryButton onClick={handleDeposit} disabled={!verified || submitting || loadingEscrow}>
-              {submitting ? `Confirming ${escrowData.assetSymbol || "USDC"} Deposit...` : `Deposit ${escrowData.amount} ${escrowData.assetSymbol || "USDC"}`}
+              {submitting
+                ? `Confirming ${escrowData.assetSymbol || "USDC"} Deposit...`
+                : networkCheckDelayed
+                  ? "Try Deposit Again"
+                  : `Deposit ${escrowData.amount} ${escrowData.assetSymbol || "USDC"}`}
             </PrimaryButton>
           </div>
         </div>

@@ -15,7 +15,7 @@ export default function PendingOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState("");
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const role = location.state?.role === "seller" ? "seller" : "buyer";
   const isSellerRole = role === "seller";
 

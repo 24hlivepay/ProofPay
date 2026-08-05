@@ -1,9 +1,11 @@
 import OtpVerification from "../pages/OtpVerification";
 import Login from "../pages/Login";
 import ActiveOrders from "../pages/ActiveOrders";
-import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Routes, Route, useLocation } from "react-router-dom";
 import Landing from "../pages/landing/Landing";
 import Home from "../pages/Home";
+import { getWalletSession } from "../services/wallet";
 
 import CreateEscrow from "../pages/CreateEscrow";
 import GenerateLink from "../pages/GenerateLink";
@@ -25,12 +27,50 @@ import CompletedOrders from "../pages/CompletedOrders";
 import CancelledOrders from "../pages/CancelledOrders";
 import CircleWallet from "../pages/CircleWallet";
 
+const LAST_SAFE_ROUTE_KEY = "proofpay-last-safe-route";
+const SAFE_SESSION_ROUTES = new Set([
+  "/dashboard",
+  "/dashboard/buying",
+  "/dashboard/selling",
+  "/wallet",
+  "/create",
+  "/active-orders",
+  "/pending-orders",
+  "/completed-orders",
+  "/cancelled-orders",
+  "/history",
+  "/profile",
+]);
+
+function SessionLanding() {
+  const session = getWalletSession();
+
+  if (!session?.address) {
+    return <Landing />;
+  }
+
+  const savedRoute = localStorage.getItem(LAST_SAFE_ROUTE_KEY);
+  const destination = SAFE_SESSION_ROUTES.has(savedRoute)
+    ? savedRoute
+    : "/dashboard";
+
+  return <Navigate to={destination} replace />;
+}
+
 export default function AppRoutes() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (getWalletSession()?.address && SAFE_SESSION_ROUTES.has(location.pathname)) {
+      localStorage.setItem(LAST_SAFE_ROUTE_KEY, location.pathname);
+    }
+  }, [location.pathname]);
+
   return (
     <Routes>
 
       {/* Landing */}
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<SessionLanding />} />
       <Route path="/login" element={<Login />} />
       <Route path="/otp" element={<OtpVerification />} />
 
