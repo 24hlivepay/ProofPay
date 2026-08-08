@@ -370,7 +370,7 @@ function LiveEscrowOverview({
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="USDC Locked" value={hasStats ? `${formatLockedAmount("USDC")} USDC` : "Loading…"} primary />
+        <StatCard label="USDC Locked" value={hasStats ? `${formatLockedAmount("USDC")} USDC` : "Loading…"} />
         <StatCard label="EURC Locked" value={hasStats ? `${formatLockedAmount("EURC")} EURC` : "Loading…"} />
         <StatCard label="cirBTC Locked" value={hasStats ? `${formatLockedAmount("cirBTC")} cirBTC` : "Loading…"} />
         <StatCard label="Executed Escrows" value={hasStats ? stats.executedEscrows ?? "Checking…" : "Loading…"} />
@@ -380,10 +380,10 @@ function LiveEscrowOverview({
   );
 }
 
-function StatCard({ label, value, primary = false }) {
+function StatCard({ label, value }) {
   return (
-    <div className={`rounded-xl border p-4 ${primary ? "border-white bg-white text-slate-900" : "border-white/20 bg-white/10 text-white"}`}>
-      <p className={`text-sm font-medium ${primary ? "text-slate-500" : "text-blue-100"}`}>{label}</p>
+    <div className="rounded-xl border border-white/20 bg-white/10 p-4 text-white">
+      <p className="text-sm font-medium text-blue-100">{label}</p>
       <p className="mt-1.5 text-xl font-bold">{value}</p>
     </div>
   );
