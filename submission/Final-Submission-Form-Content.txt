@@ -7,7 +7,7 @@ One-line description
 Multi-asset P2P escrow on Arc Testnet with verifiable delivery and buyer-controlled release.
 
 Project description
-ProofPay reduces counterparty risk in peer-to-peer online deals. A buyer creates an escrow, shares a private review link, and locks a selected testnet asset in a smart contract after the seller accepts. The seller confirms delivery on-chain, and the buyer releases payment. ProofPay supports USDC, EURC, and cirBTC escrow contracts on Arc Testnet; Circle email wallets, MetaMask, and Rabby; persistent Neon Postgres order records; buyer and seller dashboards; and Arcscan transaction evidence. The MVP has been exercised through developer-led and ongoing public testing. Automated tests cover the contract happy path, refunds, disputes, permissions, and invalid inputs.
+ProofPay reduces counterparty risk in peer-to-peer online deals. A buyer creates an escrow, shares a private review link, and locks a selected testnet asset in a smart contract after the seller accepts. The seller confirms delivery on-chain, and the buyer releases payment. ProofPay supports USDC, EURC, and cirBTC escrow contracts on Arc Testnet; Circle email wallets, MetaMask, and Rabby; persistent Neon Postgres order records; buyer and seller dashboards; and Arcscan transaction evidence. The MVP has been exercised through developer-led and ongoing public testing. Automated tests cover the contract happy path, refunds, dispute safeguards, permissions, and invalid inputs. A complete user-facing dispute-resolution workflow is planned for the next version.
 
 Short description
 Testnet escrow for safer P2P deals using USDC, EURC, or cirBTC.
@@ -32,7 +32,7 @@ What is complete
 - USDC, EURC, and cirBTC selection with dedicated escrow contracts
 - Circle email wallet, MetaMask, and Rabby onboarding
 - Persistent order metadata with buyer/seller status views
-- Refund and owner-mediated dispute functions in the contract
+- Contract-level refund and dispute safeguards (the complete user-facing dispute workflow is planned for the next version)
 - Arcscan links for verifiable lock and release transactions
 - Automated contract tests and reproducible validation command
 
