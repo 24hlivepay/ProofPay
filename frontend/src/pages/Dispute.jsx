@@ -27,6 +27,7 @@ export default function Dispute() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
@@ -40,7 +41,8 @@ export default function Dispute() {
       await api.post(`/escrow/${order.escrowId}/dispute`, {
         wallet: getConnectedWallet(), reason, statement, files: preparedFiles, transactionHash,
       });
-      setStatus("Dispute submitted. The funds are frozen and ProofPay admin will review the evidence after the other side responds.");
+      setStatus("The funds are frozen and ProofPay admin will review the case after the other side responds.");
+      setSubmitted(true);
     } catch (submitError) {
       setStatus(""); setError(submitError.response?.data?.message || submitError.message || "Unable to open dispute.");
     } finally { setSaving(false); }
@@ -53,14 +55,23 @@ export default function Dispute() {
       <h1 className="text-3xl font-bold text-slate-900">Open dispute</h1>
       <p className="mt-2 text-slate-600">{order.escrowId} · Assets stay locked in the escrow contract. Only ProofPay admin can resolve the case.</p>
       {error && <p className="mt-5 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
-      {status && <p className="mt-5 rounded-xl bg-blue-50 p-3 text-blue-800">{status}</p>}
-      <form onSubmit={submit} className="mt-6 space-y-5">
-        <label className="block font-semibold">Reason<select value={reason} onChange={(event) => setReason(event.target.value)} className="mt-2 w-full rounded-xl border p-3 font-normal"><option>Item or service not received</option><option>Item or service differs from agreement</option><option>Delivery is disputed</option><option>Other</option></select></label>
-        <label className="block font-semibold">Explain what happened<textarea required value={statement} onChange={(event) => setStatement(event.target.value)} rows="6" className="mt-2 w-full rounded-xl border p-3 font-normal" placeholder="Include dates, agreement details, and what you want reviewed." /></label>
-        <label className="block font-semibold">Evidence <span className="font-normal text-slate-500">(optional)</span><input multiple accept=".jpg,.jpeg,.png,.webp,.pdf" type="file" onChange={(event) => setFiles([...event.target.files])} className="mt-2 block w-full cursor-pointer text-sm font-normal text-slate-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700" /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 JPG, PNG, WEBP, or PDF files; 2 MB each. A written explanation alone is enough to open the case.</span></label>
-        {files.length > 0 && <ul className="rounded-xl bg-slate-50 p-3 text-sm">{files.map((file) => <li key={file.name}>• {file.name}</li>)}</ul>}
-        <button disabled={saving} className="w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:bg-red-300">{saving ? "Opening dispute..." : "Open dispute and freeze funds"}</button>
-      </form>
+      {submitted ? (
+        <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
+          <div className="text-5xl">✅</div>
+          <h2 className="mt-4 text-2xl font-bold text-green-900">Dispute opened</h2>
+          <p className="mt-2 text-sm text-green-800">{status}</p>
+          <button onClick={() => navigate(-1)} className="mt-6 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700">← Back to active orders</button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-6 space-y-5">
+          {status && <p className="rounded-xl bg-blue-50 p-3 text-blue-800">{status}</p>}
+          <label className="block font-semibold">Reason<select value={reason} onChange={(event) => setReason(event.target.value)} className="mt-2 w-full rounded-xl border p-3 font-normal"><option>Item or service not received</option><option>Item or service differs from agreement</option><option>Delivery is disputed</option><option>Payment not released by buyer</option><option>Other</option></select></label>
+          <label className="block font-semibold">Explain what happened<textarea required value={statement} onChange={(event) => setStatement(event.target.value)} rows="6" className="mt-2 w-full rounded-xl border p-3 font-normal" placeholder="Include dates, agreement details, and what you want reviewed." /></label>
+          <label className="block font-semibold">Evidence <span className="font-normal text-slate-500">(optional)</span><input multiple accept=".jpg,.jpeg,.png,.webp,.pdf" type="file" onChange={(event) => setFiles([...event.target.files])} className="mt-2 block w-full cursor-pointer text-sm font-normal text-slate-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700" /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 JPG, PNG, WEBP, or PDF files; 2 MB each. A written explanation alone is enough to open the case.</span></label>
+          {files.length > 0 && <ul className="rounded-xl bg-slate-50 p-3 text-sm">{files.map((file) => <li key={file.name}>• {file.name}</li>)}</ul>}
+          <button disabled={saving} className="w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:bg-red-300">{saving ? "Opening dispute..." : "Open dispute and freeze funds"}</button>
+        </form>
+      )}
     </div>
   </main></div>;
 }
