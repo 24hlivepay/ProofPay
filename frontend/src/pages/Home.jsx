@@ -10,7 +10,7 @@ import {
 import { getLiveContractStats } from "../services/proofpayContract";
 import api from "../services/api";
 
-const EMPTY_COUNTS = { pending: 0, active: 0, completed: 0, cancelled: 0 };
+const EMPTY_COUNTS = { pending: 0, active: 0, completed: 0, cancelled: 0, disputes: 0 };
 const EMPTY_STATS = {
   lockedByAsset: { USDC: 0, EURC: 0, cirBTC: 0 },
   executedEscrows: 0,
@@ -108,7 +108,7 @@ export default function Home() {
       }
 
       try {
-        const categories = ["pending", "active", "completed", "cancelled"];
+        const categories = ["pending", "active", "completed", "cancelled", "disputes"];
         const requestCounts = async (role) => {
           const responses = await Promise.all(categories.map((category) => api.get("/escrows", {
             params: { category, wallet: walletAddress, role },
@@ -309,6 +309,7 @@ export default function Home() {
           <RoleCard icon="🟡" title="Active Purchases" description="Funds locked or delivery in progress." count={buyerCounts.active} tone="yellow" onClick={() => openOrders("/active-orders", "buyer")} />
           <RoleCard icon="🟢" title="Completed Purchases" description="Payments you released to sellers." count={buyerCounts.completed} tone="green" onClick={() => openOrders("/completed-orders", "buyer")} />
           <RoleCard icon="🔴" title="Cancelled Purchases" description="Cancelled, rejected, or expired requests." count={buyerCounts.cancelled} tone="red" onClick={() => openOrders("/cancelled-orders", "buyer")} />
+          <RoleCard icon="⚖️" title="My Disputes" description="Disputes on your purchases, open or resolved." count={buyerCounts.disputes} tone="red" onClick={() => openOrders("/disputes", "buyer")} />
             </DashboardSection>
           </>
         )}
@@ -321,6 +322,7 @@ export default function Home() {
           <RoleCard icon="📦" title="Active Sales" description="Funds locked — confirm delivery when ready." count={sellerCounts.active} tone="yellow" onClick={() => openOrders("/active-orders", "seller")} />
           <RoleCard icon="✅" title="Payments Received" description="Completed sales paid to your wallet." count={sellerCounts.completed} tone="green" onClick={() => openOrders("/completed-orders", "seller")} />
           <RoleCard icon="🔴" title="Cancelled Sales" description="Rejected or expired sales requests." count={sellerCounts.cancelled} tone="red" onClick={() => openOrders("/cancelled-orders", "seller")} />
+          <RoleCard icon="⚖️" title="My Disputes" description="Disputes on your sales, open or resolved." count={sellerCounts.disputes} tone="red" onClick={() => openOrders("/disputes", "seller")} />
             </DashboardSection>
           </>
         )}

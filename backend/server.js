@@ -1425,7 +1425,9 @@ app.get("/api/escrows", async (req, res) => {
         : escrow.buyerWallet?.toLowerCase() === connectedWallet
     );
 
-    return belongsToConnectedWallet && allowedStatuses.includes(escrow.status);
+    if (!belongsToConnectedWallet) return false;
+    if (category === "disputes") return Boolean(escrow.dispute);
+    return allowedStatuses.includes(escrow.status);
   });
 
   res.json({
