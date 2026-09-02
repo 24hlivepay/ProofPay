@@ -30,7 +30,6 @@ export default function Dispute() {
 
   async function submit(event) {
     event.preventDefault();
-    if (!files.length) return setError("At least one screenshot, image, or PDF is required.");
     try {
       setSaving(true); setError("");
       setStatus("Preparing evidence...");
@@ -58,7 +57,7 @@ export default function Dispute() {
       <form onSubmit={submit} className="mt-6 space-y-5">
         <label className="block font-semibold">Reason<select value={reason} onChange={(event) => setReason(event.target.value)} className="mt-2 w-full rounded-xl border p-3 font-normal"><option>Item or service not received</option><option>Item or service differs from agreement</option><option>Delivery is disputed</option><option>Other</option></select></label>
         <label className="block font-semibold">Explain what happened<textarea required value={statement} onChange={(event) => setStatement(event.target.value)} rows="6" className="mt-2 w-full rounded-xl border p-3 font-normal" placeholder="Include dates, agreement details, and what you want reviewed." /></label>
-        <label className="block font-semibold">Evidence <span className="text-red-600">(required)</span><input required multiple accept=".jpg,.jpeg,.png,.webp,.pdf" type="file" onChange={(event) => setFiles([...event.target.files])} className="mt-2 block w-full text-sm font-normal" /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 JPG, PNG, WEBP, or PDF files; 2 MB each.</span></label>
+        <label className="block font-semibold">Evidence <span className="font-normal text-slate-500">(optional)</span><input multiple accept=".jpg,.jpeg,.png,.webp,.pdf" type="file" onChange={(event) => setFiles([...event.target.files])} className="mt-2 block w-full text-sm font-normal" /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 JPG, PNG, WEBP, or PDF files; 2 MB each. A written explanation alone is enough to open the case.</span></label>
         {files.length > 0 && <ul className="rounded-xl bg-slate-50 p-3 text-sm">{files.map((file) => <li key={file.name}>• {file.name}</li>)}</ul>}
         <button disabled={saving} className="w-full rounded-xl bg-red-600 py-3 font-semibold text-white disabled:bg-red-300">{saving ? "Opening dispute..." : "Open dispute and freeze funds"}</button>
       </form>

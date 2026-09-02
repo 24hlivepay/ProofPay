@@ -193,9 +193,10 @@ function participantSide(escrow, wallet) {
 }
 
 async function saveEvidenceFiles(escrowId, side, files = []) {
-  if (!Array.isArray(files) || files.length === 0 || files.length > MAX_EVIDENCE_FILES) {
-    throw new Error(`Attach between 1 and ${MAX_EVIDENCE_FILES} evidence files.`);
+  if (!Array.isArray(files) || files.length > MAX_EVIDENCE_FILES) {
+    throw new Error(`Attach up to ${MAX_EVIDENCE_FILES} evidence files.`);
   }
+  if (files.length === 0) return [];
 
   const destination = path.join(evidenceDirectory, escrowId);
   fs.mkdirSync(destination, { recursive: true });
