@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import api, { API_BASE_URL } from "../services/api";
 import { getConnectedWallet } from "../services/wallet";
 import { resolveDisputeOnChain } from "../services/proofpayContract";
 
 export default function AdminDisputes() {
+  const navigate = useNavigate();
   const [cases, setCases] = useState([]); const [resolved, setResolved] = useState([]); const [error, setError] = useState(""); const [busy, setBusy] = useState("");
   const wallet = getConnectedWallet();
   const load = () => api.get("/admin/disputes", { params: { wallet } })
@@ -19,12 +21,33 @@ export default function AdminDisputes() {
       load();
     } catch (e) { setError(e.response?.data?.message || e.message || "Resolution failed."); } finally { setBusy(""); }
   }
-  return <div className="min-h-screen bg-slate-100"><Navbar /><main className="mx-auto max-w-5xl px-5 py-8"><h1 className="text-3xl font-bold text-slate-900">ProofPay dispute administration</h1><p className="mt-2 text-slate-600">Funds are held by the contract. Your resolution transaction sends them directly to the buyer and/or seller.</p>{error && <p className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="mt-8 space-y-6">{cases.length === 0 && <p className="rounded-2xl bg-white p-8 text-slate-600">No active disputes.</p>}{cases.map((escrow) => <Case key={escrow.escrowId} escrow={escrow} wallet={wallet} busy={busy === escrow.escrowId} resolve={resolve} />)}</div>{resolved.length > 0 && <div className="mt-12"><h2 className="text-2xl font-bold text-slate-900">Resolved disputes</h2><p className="mt-1 text-slate-600">Your own record of past decisions.</p><div className="mt-4 space-y-4">{resolved.map((escrow) => <ResolvedCase key={escrow.escrowId} escrow={escrow} />)}</div></div>}</main></div>;
+  return <div className="min-h-screen bg-slate-100"><Navbar /><main className="mx-auto max-w-5xl px-5 py-8"><button onClick={() => navigate("/dashboard")} className="text-sm font-semibold text-blue-700">← Back to Dashboard</button><h1 className="mt-4 text-3xl font-bold text-slate-900">ProofPay dispute administration</h1><p className="mt-2 text-slate-600">Funds are held by the contract. Your resolution transaction sends them directly to the buyer and/or seller.</p>{error && <p className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="mt-8 space-y-6">{cases.length === 0 && <p className="rounded-2xl bg-white p-8 text-slate-600">No active disputes.</p>}{cases.map((escrow) => <Case key={escrow.escrowId} escrow={escrow} wallet={wallet} busy={busy === escrow.escrowId} resolve={resolve} />)}</div>{resolved.length > 0 && <div className="mt-12"><h2 className="text-2xl font-bold text-slate-900">Resolved disputes</h2><p className="mt-1 text-slate-600">Your own record of past decisions.</p><div className="mt-4 space-y-4">{resolved.map((escrow) => <ResolvedCase key={escrow.escrowId} escrow={escrow} wallet={wallet} />)}</div></div>}</main></div>;
 }
 
-function ResolvedCase({ escrow }) {
+function ResolvedCase({ escrow, wallet }) {
   const dispute = escrow.dispute; const resolution = dispute.resolution;
-  return <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-xl font-bold">{escrow.escrowId}</h2><p className="text-slate-600">{escrow.amount} {escrow.assetSymbol} · {dispute.reason}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">Resolved {formatDate(resolution.resolvedAt)}</span></div><p className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">{resolution.note}</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm"><p className="font-semibold text-slate-800">{resolution.buyerAmount} to buyer · {resolution.sellerAmount} to seller</p><a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://testnet.arcscan.app/tx/${resolution.transactionHash}`}>View settlement ↗</a></div></article>;
+  const evidence = [...(dispute.evidence || []), ...(dispute.responses || []).flatMap((response) => response.evidence || [])];
+  return <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-xl font-bold">{escrow.escrowId}</h2><p className="text-slate-600">{escrow.amount} {escrow.assetSymbol} · {dispute.reason}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">Resolved {formatDate(resolution.resolvedAt)}</span></div>
+
+    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      <div className="rounded-xl border border-slate-200 p-3"><p className="text-slate-500">Buyer</p><p className="font-semibold text-slate-900">{escrow.buyerName || "—"}</p><p className="break-all text-xs text-slate-500">{escrow.buyerWallet}</p></div>
+      <div className="rounded-xl border border-slate-200 p-3"><p className="text-slate-500">Seller</p><p className="font-semibold text-slate-900">{escrow.sellerName || "—"}</p><p className="break-all text-xs text-slate-500">{escrow.sellerWallet}</p></div>
+    </div>
+
+    <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <section><h3 className="font-bold">{dispute.openedBySide} claim</h3><p className="mt-2 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">{dispute.statement}</p></section>
+      {(dispute.responses || []).map((response, index) => <section key={index}><h3 className="font-bold">{response.side} response</h3><p className="mt-2 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">{response.statement}</p></section>)}
+    </div>
+
+    {evidence.length > 0 && <><h3 className="mt-4 font-bold">Private evidence</h3><ul className="mt-2 text-sm">{evidence.map((file) => <li key={file.id}><a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`${API_BASE_URL}/escrow/${escrow.escrowId}/dispute/evidence/${file.id}?wallet=${encodeURIComponent(wallet)}`}>{file.side}: {file.name}</a></li>)}</ul></>}
+
+    <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+      <p className="font-bold text-green-900">Admin decision</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-green-800">{resolution.note}</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm"><p className="font-semibold text-green-900">{resolution.buyerAmount} to buyer · {resolution.sellerAmount} to seller</p><a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://testnet.arcscan.app/tx/${resolution.transactionHash}`}>View settlement ↗</a></div>
+    </div>
+  </article>;
 }
 
 function formatDate(timestamp) {
