@@ -50,6 +50,8 @@ const ON_CHAIN_STATUS = {
   FUNDED: 1,
   DELIVERED: 2,
   RELEASED: 3,
+  REFUNDED: 4,
+  DISPUTED: 5,
 };
 
 function technicalError(error) {
@@ -513,15 +515,23 @@ export async function fundEscrow({ escrowId, sellerAddress, amount, assetSymbol 
   }
 }
 
-async function isAlreadyDeliveredOnChain(escrowId, asset) {
+async function readOnChainEscrowStatus(escrowId, asset) {
   try {
     const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
     const publicEscrow = new Contract(asset.escrowAddress, ESCROW_ABI, provider);
     const onChainEscrow = await readEscrowWithRetry(escrowId, publicEscrow, asset.escrowAddress);
-    return Number(onChainEscrow.status) >= ON_CHAIN_STATUS.DELIVERED;
+    return Number(onChainEscrow.status);
   } catch {
-    return false;
+    return null;
   }
+}
+
+async function isAlreadyDeliveredOnChain(escrowId, asset) {
+  return (await readOnChainEscrowStatus(escrowId, asset)) === ON_CHAIN_STATUS.DELIVERED;
+}
+
+async function isAlreadyDisputedOnChain(escrowId, asset) {
+  return (await readOnChainEscrowStatus(escrowId, asset)) === ON_CHAIN_STATUS.DISPUTED;
 }
 
 export async function confirmDeliveryOnChain(escrowId, assetSymbol = "USDC") {
@@ -732,6 +742,12 @@ export async function openDisputeOnChain(escrowId, assetSymbol = "USDC") {
     await transaction.wait();
     return transaction.hash;
   } catch (error) {
+    // A prior attempt can freeze the escrow on-chain even when saving its
+    // evidence afterward fails (oversized file, dropped connection). Retrying
+    // then reverts here because the contract is no longer "Funded" or
+    // "Delivered". Treat that as success so the caller can save the evidence
+    // instead of failing forever with no way to record the dispute.
+    if (await isAlreadyDisputedOnChain(escrowId, asset)) return "";
     throw new Error(readableError(error));
   }
 }

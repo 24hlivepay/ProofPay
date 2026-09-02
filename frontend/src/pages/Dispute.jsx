@@ -33,11 +33,13 @@ export default function Dispute() {
     if (!files.length) return setError("At least one screenshot, image, or PDF is required.");
     try {
       setSaving(true); setError("");
+      setStatus("Preparing evidence...");
+      const preparedFiles = await readFiles(files);
       setStatus("Confirm the dispute transaction in your wallet. Funds remain in escrow.");
       const transactionHash = await openDisputeOnChain(order.escrowId, order.assetSymbol);
       setStatus("Saving private evidence...");
       await api.post(`/escrow/${order.escrowId}/dispute`, {
-        wallet: getConnectedWallet(), reason, statement, files: await readFiles(files), transactionHash,
+        wallet: getConnectedWallet(), reason, statement, files: preparedFiles, transactionHash,
       });
       setStatus("Dispute submitted. The funds are frozen and ProofPay admin will review the evidence after the other side responds.");
     } catch (submitError) {
