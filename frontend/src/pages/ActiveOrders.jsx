@@ -245,11 +245,9 @@ export default function ActiveOrders() {
                   <p className="mt-1 text-sm">{mustRespondToDispute
                     ? "The other party opened a dispute. Submit your response and evidence so ProofPay admin can review both sides."
                     : "Only ProofPay admin can now resolve this escrow through the smart contract."}</p>
-                  {mustRespondToDispute && (
-                    <button onClick={() => respondToDispute(order)} className="mt-4 w-full rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700">
-                      Respond to dispute
-                    </button>
-                  )}
+                  <button onClick={() => respondToDispute(order)} className="mt-4 w-full rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700">
+                    {mustRespondToDispute ? "Respond to dispute" : "View dispute"}
+                  </button>
                 </div>
               )}
               {!disputed && (!isSellerRole || !deliveryConfirmed) && (

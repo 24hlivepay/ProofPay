@@ -28,27 +28,38 @@ export default function CompletedOrders() {
       <main className="mx-auto max-w-5xl px-5 py-8 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-3xl font-bold text-slate-900">{isSellerRole ? "Payments Received" : "Completed Purchases"}</h1><p className="mt-2 text-slate-600">{isSellerRole ? "USDC payments released to your seller wallet." : "USDC payments successfully released to sellers."}</p></div><button onClick={() => navigate(isSellerRole ? "/dashboard/selling" : "/dashboard/buying")} className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">← {isSellerRole ? "Selling Escrows" : "Buying Escrows"}</button></div>
         <div className="mt-8 space-y-5">
-          {orders.length === 0 ? <EmptyState seller={isSellerRole} /> : orders.map((order) => <OrderCard key={order.escrowId} order={order} seller={isSellerRole} />)}
+          {orders.length === 0 ? <EmptyState seller={isSellerRole} /> : orders.map((order) => <OrderCard key={order.escrowId} order={order} seller={isSellerRole} onViewDispute={() => navigate("/dispute/respond", { state: { order } })} />)}
         </div>
       </main>
     </div>
   );
 }
 
-function OrderCard({ order, seller }) {
+function OrderCard({ order, seller, onViewDispute }) {
+  const resolution = order.dispute?.resolution;
   return (
-    <article className="rounded-2xl border border-green-200 bg-white p-5 shadow-sm">
+    <article className={`rounded-2xl border bg-white p-5 shadow-sm ${resolution ? "border-amber-200" : "border-green-200"}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><h2 className="text-2xl font-bold text-slate-900">{order.escrowId}</h2><p className="mt-2 text-slate-600">{order.productName || "Escrow transaction"}</p></div>
-        <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-bold text-green-700">{seller ? "Payment Received" : "Payment Released"}</span>
+        <span className={`rounded-full px-4 py-2 text-sm font-bold ${resolution ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
+          {resolution ? "Resolved by ProofPay admin" : seller ? "Payment Received" : "Payment Released"}
+        </span>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Detail label={seller ? "Buyer" : "Seller"} value={seller ? order.buyerName : order.sellerName} />
         <Detail label={seller ? "Amount received" : "Amount paid"} value={`${order.amount} ${order.assetSymbol || "USDC"}`} />
         <Detail label="Created" value={formatDate(order.createdAt)} />
-        <Detail label="Completed" value={formatDate(order.releasedAt)} />
+        <Detail label="Completed" value={formatDate(order.releasedAt || resolution?.resolvedAt)} />
       </div>
+
+      {resolution && (
+        <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5">
+          <p className="font-bold text-slate-900">This order was settled through a dispute</p>
+          <p className="mt-1 text-sm text-slate-600">{resolution.buyerAmount} {order.assetSymbol} to buyer · {resolution.sellerAmount} {order.assetSymbol} to seller.</p>
+          <button onClick={onViewDispute} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-amber-700 shadow-sm hover:bg-amber-100">View admin decision</button>
+        </div>
+      )}
 
       {(order.depositTransactionHash || order.releaseTransactionHash) && (
         <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">

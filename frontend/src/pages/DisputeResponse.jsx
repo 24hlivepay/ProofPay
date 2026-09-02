@@ -38,7 +38,9 @@ export default function DisputeResponse() {
   }, [order, wallet]);
 
   const mySide = order && wallet?.toLowerCase() === order.buyerWallet?.toLowerCase() ? "buyer" : "seller";
+  const isOpener = dispute && mySide === dispute.openedBySide;
   const alreadyResponded = dispute?.responses?.some((response) => response.side === mySide);
+  const resolution = dispute?.resolution;
 
   async function submit(event) {
     event.preventDefault();
@@ -57,10 +59,13 @@ export default function DisputeResponse() {
 
   if (!order) return <div className="min-h-screen bg-slate-100"><Navbar /><main className="mx-auto max-w-xl p-8"><p className="rounded-xl bg-red-50 p-4 text-red-700">Open this screen from an active, disputed escrow.</p></main></div>;
 
+  const canRespond = dispute && !isOpener && !alreadyResponded && !resolution;
+  const title = canRespond ? "Respond to dispute" : "Dispute case";
+
   return <div className="min-h-screen bg-slate-100"><Navbar /><main className="mx-auto max-w-2xl px-5 py-8 sm:px-6">
     <button onClick={() => navigate(-1)} className="text-sm font-semibold text-blue-700">← Back to active orders</button>
     <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <h1 className="text-3xl font-bold text-slate-900">Respond to dispute</h1>
+      <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
       <p className="mt-2 text-slate-600">{order.escrowId} · Funds stay locked in the escrow contract until ProofPay admin resolves the case.</p>
 
       {loading && <p className="mt-6 text-slate-600">Loading case details...</p>}
@@ -77,16 +82,37 @@ export default function DisputeResponse() {
         </ul>}
       </div>}
 
+      {dispute?.responses?.map((response, index) => <div key={index} className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <h2 className="font-bold text-slate-900">{response.side === "buyer" ? "Buyer" : "Seller"} response</h2>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{response.statement}</p>
+        {response.evidence?.length > 0 && <ul className="mt-3 text-sm">
+          {response.evidence.map((file) => <li key={file.id}>
+            <a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`${API_BASE_URL}/escrow/${order.escrowId}/dispute/evidence/${file.id}?wallet=${encodeURIComponent(wallet)}`}>{file.name}</a>
+          </li>)}
+        </ul>}
+      </div>)}
+
+      {resolution && <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
+        <h2 className="font-bold text-green-900">ProofPay admin decision</h2>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-green-800">{resolution.note}</p>
+        <p className="mt-3 text-sm font-semibold text-green-900">
+          {resolution.buyerAmount} {order.assetSymbol} to buyer · {resolution.sellerAmount} {order.assetSymbol} to seller
+        </p>
+        <a className="mt-2 inline-block text-sm font-semibold text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://testnet.arcscan.app/tx/${resolution.transactionHash}`}>View settlement on Arcscan ↗</a>
+      </div>}
+
       {status && <p className="mt-5 rounded-xl bg-blue-50 p-3 text-blue-800">{status}</p>}
 
-      {dispute && !status && (alreadyResponded
-        ? <p className="mt-6 rounded-xl bg-blue-50 p-4 text-blue-800">You already submitted a response. ProofPay admin is reviewing both sides.</p>
-        : <form onSubmit={submit} className="mt-6 space-y-5">
-          <label className="block font-semibold">Your response<textarea required value={statement} onChange={(event) => setStatement(event.target.value)} rows="6" className="mt-2 w-full rounded-xl border p-3 font-normal" placeholder="Explain your side and reference dates or delivery details." /></label>
-          <label className="block font-semibold">Evidence <span className="text-red-600">(required)</span><input required multiple accept=".jpg,.jpeg,.png,.webp,.pdf" type="file" onChange={(event) => setFiles([...event.target.files])} className="mt-2 block w-full text-sm font-normal" /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 JPG, PNG, WEBP, or PDF files; 2 MB each.</span></label>
-          {files.length > 0 && <ul className="rounded-xl bg-slate-50 p-3 text-sm">{files.map((file) => <li key={file.name}>• {file.name}</li>)}</ul>}
-          <button disabled={saving} className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:bg-blue-300">{saving ? "Submitting response..." : "Submit response"}</button>
-        </form>)}
+      {dispute && !status && !resolution && (isOpener
+        ? <p className="mt-6 rounded-xl bg-blue-50 p-4 text-blue-800">Waiting for the other party to respond. ProofPay admin will review both sides once they do.</p>
+        : alreadyResponded
+          ? <p className="mt-6 rounded-xl bg-blue-50 p-4 text-blue-800">You already submitted a response. ProofPay admin is reviewing both sides.</p>
+          : <form onSubmit={submit} className="mt-6 space-y-5">
+            <label className="block font-semibold">Your response<textarea required value={statement} onChange={(event) => setStatement(event.target.value)} rows="6" className="mt-2 w-full rounded-xl border p-3 font-normal" placeholder="Explain your side and reference dates or delivery details." /></label>
+            <label className="block font-semibold">Evidence <span className="text-red-600">(required)</span><input required multiple accept=".jpg,.jpeg,.png,.webp,.pdf" type="file" onChange={(event) => setFiles([...event.target.files])} className="mt-2 block w-full text-sm font-normal" /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum 5 JPG, PNG, WEBP, or PDF files; 2 MB each.</span></label>
+            {files.length > 0 && <ul className="rounded-xl bg-slate-50 p-3 text-sm">{files.map((file) => <li key={file.name}>• {file.name}</li>)}</ul>}
+            <button disabled={saving} className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:bg-blue-300">{saving ? "Submitting response..." : "Submit response"}</button>
+          </form>)}
     </div>
   </main></div>;
 }

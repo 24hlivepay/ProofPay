@@ -1288,15 +1288,23 @@ app.get("/api/admin/disputes", async (req, res) => {
 });
 
 app.post("/api/admin/disputes/:id/resolved", async (req, res) => {
-  const { wallet, buyerAmount, transactionHash } = req.body || {};
+  const { wallet, buyerAmount, transactionHash, note } = req.body || {};
   if (!isDisputeAdmin(wallet)) return res.status(403).json({ success: false, message: "ProofPay admin access required." });
   if (!/^0x[a-fA-F0-9]{64}$/.test(transactionHash || "")) return res.status(400).json({ success: false, message: "A confirmed on-chain resolution transaction is required." });
+  if (!String(note || "").trim()) return res.status(400).json({ success: false, message: "Explain the resolution so both sides can see the reasoning." });
   const allEscrows = await loadEscrows();
   const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
   if (!escrow?.dispute || escrow.status !== "Disputed") return res.status(404).json({ success: false, message: "Active dispute not found." });
   escrow.status = Number(buyerAmount) >= Number(escrow.amount) ? "Refunded" : "Released";
   escrow.dispute.status = "Resolved";
-  escrow.dispute.resolution = { buyerAmount: String(buyerAmount), sellerAmount: String(Number(escrow.amount) - Number(buyerAmount)), transactionHash, resolvedAt: Date.now(), resolvedBy: String(wallet).toLowerCase() };
+  escrow.dispute.resolution = {
+    buyerAmount: String(buyerAmount),
+    sellerAmount: String(Number(escrow.amount) - Number(buyerAmount)),
+    transactionHash,
+    note: String(note).trim().slice(0, 2000),
+    resolvedAt: Date.now(),
+    resolvedBy: String(wallet).toLowerCase(),
+  };
   await saveEscrows(allEscrows);
   return res.json({ success: true, escrow });
 });
@@ -1395,7 +1403,7 @@ app.get("/api/escrows", async (req, res) => {
   const categories = {
     pending: ["Waiting Seller", "Seller Accepted"],
     active: ["Funds Locked", "Delivered", "Disputed"],
-    completed: ["Released"],
+    completed: ["Released", "Refunded"],
     cancelled: ["Cancelled"],
   };
 
