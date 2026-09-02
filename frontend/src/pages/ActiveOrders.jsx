@@ -64,6 +64,10 @@ export default function ActiveOrders() {
     navigate("/dispute", { state: { order } });
   }
 
+  function respondToDispute(order) {
+    navigate("/dispute/respond", { state: { order } });
+  }
+
   async function releaseOrderFunds(order) {
     try {
       setReleasingId(order.escrowId);
@@ -159,6 +163,11 @@ export default function ActiveOrders() {
             const deliveryConfirmed = order.status === "Delivered";
             const disputed = order.status === "Disputed";
             const buyerMustRelease = deliveryConfirmed && !isSellerRole;
+            const mySide = getConnectedWallet()?.toLowerCase() === order.buyerWallet?.toLowerCase() ? "buyer" : "seller";
+            const mustRespondToDispute = disputed
+              && order.dispute?.openedBySide
+              && order.dispute.openedBySide !== mySide
+              && !order.dispute.responses?.some((response) => response.side === mySide);
 
             return (
             <article
@@ -233,7 +242,14 @@ export default function ActiveOrders() {
               {disputed && (
                 <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">
                   <p className="font-bold">Dispute open — funds remain locked</p>
-                  <p className="mt-1 text-sm">Only ProofPay admin can now resolve this escrow through the smart contract.</p>
+                  <p className="mt-1 text-sm">{mustRespondToDispute
+                    ? "The other party opened a dispute. Submit your response and evidence so ProofPay admin can review both sides."
+                    : "Only ProofPay admin can now resolve this escrow through the smart contract."}</p>
+                  {mustRespondToDispute && (
+                    <button onClick={() => respondToDispute(order)} className="mt-4 w-full rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700">
+                      Respond to dispute
+                    </button>
+                  )}
                 </div>
               )}
               {!disputed && (!isSellerRole || !deliveryConfirmed) && (

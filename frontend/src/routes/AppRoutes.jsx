@@ -20,6 +20,7 @@ import EscrowActive from "../pages/EscrowActive";
 import ReleaseFunds from "../pages/ReleaseFunds";
 import Refund from "../pages/Refund";
 import Dispute from "../pages/Dispute";
+import DisputeResponse from "../pages/DisputeResponse";
 import AdminDisputes from "../pages/AdminDisputes";
 import OrderHistory from "../pages/OrderHistory";
 import Profile from "../pages/Profile";
@@ -88,6 +89,7 @@ export default function AppRoutes() {
       <Route path="/release" element={<ReleaseFunds />} />
       <Route path="/refund" element={<Refund />} />
       <Route path="/dispute" element={<Dispute />} />
+      <Route path="/dispute/respond" element={<DisputeResponse />} />
       <Route path="/admin/disputes" element={<AdminDisputes />} />
 
       {/* Seller */}
