@@ -70,6 +70,10 @@ function DisputeCard({ order, onView }) {
         </span>
       </div>
       <p className="mt-3 text-sm text-slate-500">Opened {formatDate(dispute.openedAt)}{resolved ? ` · Resolved ${formatDate(dispute.resolution.resolvedAt)}` : ""}</p>
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 p-3"><p className="text-slate-500">Buyer</p><p className="font-semibold text-slate-900">{order.buyerName || "—"}</p><p className="break-all text-xs text-slate-500">{order.buyerWallet}</p></div>
+        <div className="rounded-xl border border-slate-200 p-3"><p className="text-slate-500">Seller</p><p className="font-semibold text-slate-900">{order.sellerName || "—"}</p><p className="break-all text-xs text-slate-500">{order.sellerWallet}</p></div>
+      </div>
       <button onClick={onView} className="mt-5 w-full rounded-xl bg-slate-800 py-3 font-semibold text-white hover:bg-slate-900">View case</button>
     </article>
   );

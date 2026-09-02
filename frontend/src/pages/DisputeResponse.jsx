@@ -70,7 +70,12 @@ export default function DisputeResponse() {
       {loading && <p className="mt-6 text-slate-600">Loading case details...</p>}
       {error && <p className="mt-5 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
 
-      {dispute && <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 p-3"><p className="text-slate-500">Buyer</p><p className="font-semibold text-slate-900">{order.buyerName || "—"}</p><p className="break-all text-xs text-slate-500">{order.buyerWallet}</p></div>
+        <div className="rounded-xl border border-slate-200 p-3"><p className="text-slate-500">Seller</p><p className="font-semibold text-slate-900">{order.sellerName || "—"}</p><p className="break-all text-xs text-slate-500">{order.sellerWallet}</p></div>
+      </div>
+
+      {dispute && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <h2 className="font-bold text-slate-900">{dispute.openedBySide === "buyer" ? "Buyer" : "Seller"} claim</h2>
         <p className="mt-1 text-sm font-semibold text-slate-700">{dispute.reason}</p>
         <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{dispute.statement}</p>
