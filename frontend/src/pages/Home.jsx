@@ -249,6 +249,10 @@ export default function Home() {
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : null;
 
+  const disputeAdminWallet = import.meta.env.VITE_DISPUTE_ADMIN_WALLET || "";
+  const isDisputeAdmin = Boolean(disputeAdminWallet)
+    && walletAddress?.toLowerCase() === disputeAdminWallet.toLowerCase();
+
   const openOrders = (path, role) => navigate(path, { state: { role } });
   const mode = location.pathname === "/dashboard/buying"
     ? "buyer"
@@ -292,6 +296,7 @@ export default function Home() {
             <WorkspaceCard icon="💳" title="My Wallet" description="View balances, receive, and send supported Arc Testnet tokens." onClick={() => navigate("/wallet")} />
             <WorkspaceCard icon="🛒" title="Buying Escrows" description="Create a secure escrow, deposit a supported asset, and release payment after delivery." onClick={() => navigate("/dashboard/buying")} />
             <WorkspaceCard icon="🏪" title="Selling Escrows" description="See accepted sales, confirm delivery, and track payments received." onClick={() => navigate("/dashboard/selling")} />
+            {isDisputeAdmin && <WorkspaceCard icon="🛡️" title="Admin Disputes" description="Review evidence from both sides and settle disputed escrows on-chain." onClick={() => navigate("/admin/disputes")} />}
           </section>
         )}
 
