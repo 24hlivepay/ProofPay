@@ -513,6 +513,17 @@ export async function fundEscrow({ escrowId, sellerAddress, amount, assetSymbol 
   }
 }
 
+async function isAlreadyDeliveredOnChain(escrowId, asset) {
+  try {
+    const provider = new JsonRpcProvider(ARC_TESTNET_RPC_URL);
+    const publicEscrow = new Contract(asset.escrowAddress, ESCROW_ABI, provider);
+    const onChainEscrow = await readEscrowWithRetry(escrowId, publicEscrow, asset.escrowAddress);
+    return Number(onChainEscrow.status) >= ON_CHAIN_STATUS.DELIVERED;
+  } catch {
+    return false;
+  }
+}
+
 export async function confirmDeliveryOnChain(escrowId, assetSymbol = "USDC") {
   const asset = getEscrowAsset(assetSymbol);
 
@@ -556,6 +567,12 @@ export async function confirmDeliveryOnChain(escrowId, assetSymbol = "USDC") {
     await transaction.wait();
     return transaction.hash;
   } catch (error) {
+    // A prior attempt can succeed on-chain even when its confirmation never
+    // reached this browser (a dropped RPC response, a closed tab). Retrying
+    // then reverts here because the contract is no longer in "Funded"
+    // status. Treat that as success so the caller can sync ProofPay's record
+    // instead of showing a permanent "Interaction failed" loop.
+    if (await isAlreadyDeliveredOnChain(escrowId, asset)) return "";
     throw new Error(readableError(error));
   }
 }
