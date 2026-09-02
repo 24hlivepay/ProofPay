@@ -5,9 +5,11 @@ import { getConnectedWallet } from "../services/wallet";
 import { resolveDisputeOnChain } from "../services/proofpayContract";
 
 export default function AdminDisputes() {
-  const [cases, setCases] = useState([]); const [error, setError] = useState(""); const [busy, setBusy] = useState("");
+  const [cases, setCases] = useState([]); const [resolved, setResolved] = useState([]); const [error, setError] = useState(""); const [busy, setBusy] = useState("");
   const wallet = getConnectedWallet();
-  const load = () => api.get("/admin/disputes", { params: { wallet } }).then((r) => setCases(r.data.disputes)).catch((e) => setError(e.response?.data?.message || "Unable to load cases."));
+  const load = () => api.get("/admin/disputes", { params: { wallet } })
+    .then((r) => { setCases(r.data.disputes); setResolved(r.data.resolved || []); })
+    .catch((e) => setError(e.response?.data?.message || "Unable to load cases."));
   useEffect(() => { load(); }, []);
   async function resolve(escrow, buyerAmount, note) {
     if (!note.trim()) return setError("Write a resolution note before deciding — both sides will see it.");
@@ -17,7 +19,17 @@ export default function AdminDisputes() {
       load();
     } catch (e) { setError(e.response?.data?.message || e.message || "Resolution failed."); } finally { setBusy(""); }
   }
-  return <div className="min-h-screen bg-slate-100"><Navbar /><main className="mx-auto max-w-5xl px-5 py-8"><h1 className="text-3xl font-bold text-slate-900">ProofPay dispute administration</h1><p className="mt-2 text-slate-600">Funds are held by the contract. Your resolution transaction sends them directly to the buyer and/or seller.</p>{error && <p className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="mt-8 space-y-6">{cases.length === 0 && <p className="rounded-2xl bg-white p-8 text-slate-600">No active disputes.</p>}{cases.map((escrow) => <Case key={escrow.escrowId} escrow={escrow} wallet={wallet} busy={busy === escrow.escrowId} resolve={resolve} />)}</div></main></div>;
+  return <div className="min-h-screen bg-slate-100"><Navbar /><main className="mx-auto max-w-5xl px-5 py-8"><h1 className="text-3xl font-bold text-slate-900">ProofPay dispute administration</h1><p className="mt-2 text-slate-600">Funds are held by the contract. Your resolution transaction sends them directly to the buyer and/or seller.</p>{error && <p className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}<div className="mt-8 space-y-6">{cases.length === 0 && <p className="rounded-2xl bg-white p-8 text-slate-600">No active disputes.</p>}{cases.map((escrow) => <Case key={escrow.escrowId} escrow={escrow} wallet={wallet} busy={busy === escrow.escrowId} resolve={resolve} />)}</div>{resolved.length > 0 && <div className="mt-12"><h2 className="text-2xl font-bold text-slate-900">Resolved disputes</h2><p className="mt-1 text-slate-600">Your own record of past decisions.</p><div className="mt-4 space-y-4">{resolved.map((escrow) => <ResolvedCase key={escrow.escrowId} escrow={escrow} />)}</div></div>}</main></div>;
+}
+
+function ResolvedCase({ escrow }) {
+  const dispute = escrow.dispute; const resolution = dispute.resolution;
+  return <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-xl font-bold">{escrow.escrowId}</h2><p className="text-slate-600">{escrow.amount} {escrow.assetSymbol} · {dispute.reason}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">Resolved {formatDate(resolution.resolvedAt)}</span></div><p className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">{resolution.note}</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm"><p className="font-semibold text-slate-800">{resolution.buyerAmount} to buyer · {resolution.sellerAmount} to seller</p><a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://testnet.arcscan.app/tx/${resolution.transactionHash}`}>View settlement ↗</a></div></article>;
+}
+
+function formatDate(timestamp) {
+  if (!timestamp) return "—";
+  return new Date(timestamp).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
 function Case({ escrow, wallet, busy, resolve }) {

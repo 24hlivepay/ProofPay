@@ -1284,7 +1284,14 @@ function isDisputeAdmin(wallet) {
 app.get("/api/admin/disputes", async (req, res) => {
   if (!isDisputeAdmin(req.query.wallet)) return res.status(403).json({ success: false, message: "ProofPay admin access required." });
   const allEscrows = await loadEscrows();
-  return res.json({ success: true, disputes: allEscrows.filter((escrow) => escrow.status === "Disputed") });
+  const withDispute = allEscrows.filter((escrow) => escrow.dispute);
+  return res.json({
+    success: true,
+    disputes: withDispute.filter((escrow) => escrow.status === "Disputed"),
+    resolved: withDispute
+      .filter((escrow) => escrow.dispute.resolution)
+      .sort((a, b) => b.dispute.resolution.resolvedAt - a.dispute.resolution.resolvedAt),
+  });
 });
 
 app.post("/api/admin/disputes/:id/resolved", async (req, res) => {
