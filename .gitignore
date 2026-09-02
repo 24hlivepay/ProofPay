@@ -54,3 +54,5 @@
 
 # Snapshot cheatcodes output
 /snapshots
+.vercel
+.env*

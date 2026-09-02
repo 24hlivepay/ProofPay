@@ -60,6 +60,10 @@ export default function ActiveOrders() {
     navigate("/active", { state: { backTo: "/active-orders" } });
   }
 
+  function openDispute(order) {
+    navigate("/dispute", { state: { order } });
+  }
+
   async function releaseOrderFunds(order) {
     try {
       setReleasingId(order.escrowId);
@@ -153,6 +157,7 @@ export default function ActiveOrders() {
 
           {orders.map((order) => {
             const deliveryConfirmed = order.status === "Delivered";
+            const disputed = order.status === "Disputed";
             const buyerMustRelease = deliveryConfirmed && !isSellerRole;
 
             return (
@@ -225,7 +230,13 @@ export default function ActiveOrders() {
                   </a>
                 </div>
               )}
-              {(!isSellerRole || !deliveryConfirmed) && (
+              {disputed && (
+                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">
+                  <p className="font-bold">Dispute open — funds remain locked</p>
+                  <p className="mt-1 text-sm">Only ProofPay admin can now resolve this escrow through the smart contract.</p>
+                </div>
+              )}
+              {!disputed && (!isSellerRole || !deliveryConfirmed) && (
                 <button
                   onClick={() => isSellerRole
                     ? confirmOrderDelivery(order)
@@ -254,6 +265,13 @@ export default function ActiveOrders() {
                           : "Open Escrow"}
                 </button>
               )}
+              {!disputed && <button
+                onClick={() => openDispute(order)}
+                disabled={confirmingId === order.escrowId || releasingId === order.escrowId}
+                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-3 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+              >
+                Open Dispute
+              </button>}
             </article>
             );
           })}

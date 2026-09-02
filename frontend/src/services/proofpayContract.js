@@ -28,6 +28,7 @@ const ESCROW_ABI = [
   "function releaseFunds(string escrowId)",
   "function refund(string escrowId)",
   "function openDispute(string escrowId)",
+  "function resolveDispute(string escrowId, uint256 buyerAmount)",
   "function getEscrow(string escrowId) view returns (address buyer, address seller, uint256 amount, uint8 status)",
   "event EscrowCreated(string indexed escrowId, address indexed buyer, address indexed seller, uint256 amount)",
   "event DeliveryConfirmed(string indexed escrowId, address indexed seller)",
@@ -691,6 +692,47 @@ export async function refundOnChain(escrowId, assetSymbol = "USDC") {
   try {
     const { escrow } = await getContracts(assetSymbol);
     const transaction = await escrow.refund(escrowId);
+    await transaction.wait();
+    return transaction.hash;
+  } catch (error) {
+    throw new Error(readableError(error));
+  }
+}
+
+export async function openDisputeOnChain(escrowId, assetSymbol = "USDC") {
+  const asset = getEscrowAsset(assetSymbol);
+  if (isCircleWallet()) {
+    const transaction = await executeCircleProofPay({
+      contractAddress: asset.escrowAddress,
+      abiFunctionSignature: "openDispute(string)",
+      abiParameters: [escrowId],
+    });
+    return transaction.hash;
+  }
+  try {
+    const { escrow } = await getContracts(assetSymbol);
+    const transaction = await escrow.openDispute(escrowId, { gasLimit: ARC_STATUS_UPDATE_GAS_LIMIT });
+    await transaction.wait();
+    return transaction.hash;
+  } catch (error) {
+    throw new Error(readableError(error));
+  }
+}
+
+export async function resolveDisputeOnChain(escrowId, buyerAmount, assetSymbol = "USDC") {
+  const asset = getEscrowAsset(assetSymbol);
+  const buyerAmountUnits = parseUnits(String(buyerAmount), asset.decimals);
+  if (isCircleWallet()) {
+    const transaction = await executeCircleProofPay({
+      contractAddress: asset.escrowAddress,
+      abiFunctionSignature: "resolveDispute(string,uint256)",
+      abiParameters: [escrowId, buyerAmountUnits.toString()],
+    });
+    return transaction.hash;
+  }
+  try {
+    const { escrow } = await getContracts(assetSymbol);
+    const transaction = await escrow.resolveDispute(escrowId, buyerAmountUnits, { gasLimit: ARC_ESCROW_GAS_LIMIT });
     await transaction.wait();
     return transaction.hash;
   } catch (error) {

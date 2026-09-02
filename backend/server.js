@@ -7,6 +7,7 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import pg from "pg";
+import { get as getBlob, put as putBlob } from "@vercel/blob";
 import { validateCircleConfig } from "./services/circleService.js";
 
 dotenv.config();
@@ -35,7 +36,7 @@ app.use(cors({
     callback(new Error("Origin not allowed by CORS"));
   },
 }));
-app.use(express.json());
+app.use(express.json({ limit: "12mb" }));
 
 const CIRCLE_API_URL = "https://api.circle.com";
 
@@ -53,6 +54,11 @@ const dataDirectory = process.env.DATA_DIR ||
 fs.mkdirSync(dataDirectory, { recursive: true });
 const dataFile = path.join(dataDirectory, "escrows.json");
 const walletConnectionsFile = path.join(dataDirectory, "wallet-connections.json");
+const evidenceDirectory = path.join(dataDirectory, "evidence");
+const MAX_EVIDENCE_FILES = 5;
+const MAX_EVIDENCE_FILE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_EVIDENCE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+fs.mkdirSync(evidenceDirectory, { recursive: true });
 const databasePool = process.env.DATABASE_URL
   ? new pg.Pool({
       connectionString: process.env.DATABASE_URL,
@@ -171,6 +177,62 @@ async function saveEscrows(data) {
     console.log("❌ SAVE ERROR:", error);
     throw error;
   }
+}
+
+function isEscrowParticipant(escrow, wallet) {
+  const address = String(wallet || "").toLowerCase();
+  return Boolean(address) && [escrow.buyerWallet, escrow.sellerWallet]
+    .filter(Boolean)
+    .some((participant) => participant.toLowerCase() === address);
+}
+
+function participantSide(escrow, wallet) {
+  return escrow.buyerWallet?.toLowerCase() === String(wallet || "").toLowerCase()
+    ? "buyer"
+    : "seller";
+}
+
+async function saveEvidenceFiles(escrowId, side, files = []) {
+  if (!Array.isArray(files) || files.length === 0 || files.length > MAX_EVIDENCE_FILES) {
+    throw new Error(`Attach between 1 and ${MAX_EVIDENCE_FILES} evidence files.`);
+  }
+
+  const destination = path.join(evidenceDirectory, escrowId);
+  fs.mkdirSync(destination, { recursive: true });
+
+  return Promise.all(files.map(async (file) => {
+    if (!ALLOWED_EVIDENCE_TYPES.has(file?.type)) {
+      throw new Error("Only JPG, PNG, WEBP, and PDF evidence files are allowed.");
+    }
+    const match = String(file?.dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+    if (!match || match[1] !== file.type) throw new Error("Invalid evidence upload.");
+    const content = Buffer.from(match[2], "base64");
+    if (!content.length || content.length > MAX_EVIDENCE_FILE_BYTES) {
+      throw new Error("Each evidence file must be 2 MB or smaller.");
+    }
+    const id = crypto.randomUUID();
+    const extension = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+    let blobUrl = "";
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const blob = await putBlob(`disputes/${escrowId}/${side}/${id}.${extension}`, content, {
+        access: "private", contentType: file.type, addRandomSuffix: false,
+      });
+      blobUrl = blob.url;
+    } else {
+      fs.writeFileSync(path.join(destination, `${id}.${extension}`), content, { flag: "wx" });
+    }
+    return {
+      id,
+      side,
+      name: String(file.name || `evidence.${extension}`).slice(0, 120),
+      type: file.type,
+      size: content.length,
+      path: `${id}.${extension}`,
+      blobUrl,
+      hash: crypto.createHash("sha256").update(content).digest("hex"),
+      uploadedAt: Date.now(),
+    };
+  }));
 }
 
 async function loadWalletConnections() {
@@ -1129,6 +1191,118 @@ app.post("/api/escrow/:id/release", async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
+| Disputes and private evidence
+|--------------------------------------------------------------------------
+*/
+app.post("/api/escrow/:id/dispute", async (req, res) => {
+  try {
+    const { wallet, reason, statement, files, transactionHash } = req.body || {};
+    const allEscrows = await loadEscrows();
+    const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+    if (!escrow) return res.status(404).json({ success: false, message: "Escrow Not Found" });
+    if (!isEscrowParticipant(escrow, wallet)) return res.status(403).json({ success: false, message: "Only the buyer or seller can open this dispute." });
+    if (!["Funds Locked", "Delivered"].includes(escrow.status)) {
+      return res.status(400).json({ success: false, message: "Only funded escrows can be disputed." });
+    }
+    if (!String(reason || "").trim() || !String(statement || "").trim()) {
+      return res.status(400).json({ success: false, message: "A dispute reason and explanation are required." });
+    }
+
+    const side = participantSide(escrow, wallet);
+    const evidence = await saveEvidenceFiles(escrow.escrowId, side, files);
+    escrow.status = "Disputed";
+    escrow.dispute = {
+      id: crypto.randomUUID(),
+      openedBy: String(wallet).toLowerCase(),
+      openedBySide: side,
+      reason: String(reason).trim().slice(0, 120),
+      statement: String(statement).trim().slice(0, 4000),
+      openedAt: Date.now(),
+      responseDueAt: Date.now() + 48 * 60 * 60 * 1000,
+      status: "Awaiting response",
+      openTransactionHash: /^0x[a-fA-F0-9]{64}$/.test(transactionHash || "") ? transactionHash : "",
+      evidence,
+      responses: [],
+    };
+    await saveEscrows(allEscrows);
+    escrows[escrow.escrowId] = escrow;
+    return res.json({ success: true, escrow });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || "Unable to open dispute." });
+  }
+});
+
+app.post("/api/escrow/:id/dispute/response", async (req, res) => {
+  try {
+    const { wallet, statement, files } = req.body || {};
+    const allEscrows = await loadEscrows();
+    const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+    if (!escrow?.dispute || escrow.status !== "Disputed") return res.status(404).json({ success: false, message: "Active dispute not found." });
+    if (!isEscrowParticipant(escrow, wallet)) return res.status(403).json({ success: false, message: "Only escrow participants can respond." });
+    const side = participantSide(escrow, wallet);
+    if (side === escrow.dispute.openedBySide) return res.status(400).json({ success: false, message: "Wait for the other party's response before adding more evidence." });
+    if (!String(statement || "").trim()) return res.status(400).json({ success: false, message: "A written response is required." });
+    const evidence = await saveEvidenceFiles(escrow.escrowId, side, files);
+    escrow.dispute.responses.push({ side, wallet: String(wallet).toLowerCase(), statement: String(statement).trim().slice(0, 4000), submittedAt: Date.now(), evidence });
+    escrow.dispute.status = "Under review";
+    await saveEscrows(allEscrows);
+    return res.json({ success: true, escrow });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || "Unable to submit response." });
+  }
+});
+
+app.get("/api/escrow/:id/dispute", async (req, res) => {
+  const allEscrows = await loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+  if (!escrow?.dispute) return res.status(404).json({ success: false, message: "Dispute not found." });
+  if (!isEscrowParticipant(escrow, req.query.wallet)) return res.status(403).json({ success: false, message: "This case is private." });
+  return res.json({ success: true, dispute: escrow.dispute, escrow });
+});
+
+app.get("/api/escrow/:id/dispute/evidence/:fileId", async (req, res) => {
+  const allEscrows = await loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+  if (!escrow?.dispute || (!isEscrowParticipant(escrow, req.query.wallet) && !isDisputeAdmin(req.query.wallet))) return res.sendStatus(403);
+  const entries = [...escrow.dispute.evidence, ...escrow.dispute.responses.flatMap((response) => response.evidence || [])];
+  const file = entries.find((entry) => entry.id === req.params.fileId);
+  if (!file) return res.sendStatus(404);
+  if (file.blobUrl) {
+    const blob = await getBlob(file.blobUrl, { access: "private" });
+    if (!blob?.stream) return res.sendStatus(404);
+    const content = Buffer.from(await new Response(blob.stream).arrayBuffer());
+    return res.type(file.type).send(content);
+  }
+  return res.type(file.type).sendFile(path.resolve(evidenceDirectory, escrow.escrowId, file.path));
+});
+
+function isDisputeAdmin(wallet) {
+  const configured = String(process.env.DISPUTE_ADMIN_WALLET || "").toLowerCase();
+  return Boolean(configured) && configured === String(wallet || "").toLowerCase();
+}
+
+app.get("/api/admin/disputes", async (req, res) => {
+  if (!isDisputeAdmin(req.query.wallet)) return res.status(403).json({ success: false, message: "ProofPay admin access required." });
+  const allEscrows = await loadEscrows();
+  return res.json({ success: true, disputes: allEscrows.filter((escrow) => escrow.status === "Disputed") });
+});
+
+app.post("/api/admin/disputes/:id/resolved", async (req, res) => {
+  const { wallet, buyerAmount, transactionHash } = req.body || {};
+  if (!isDisputeAdmin(wallet)) return res.status(403).json({ success: false, message: "ProofPay admin access required." });
+  if (!/^0x[a-fA-F0-9]{64}$/.test(transactionHash || "")) return res.status(400).json({ success: false, message: "A confirmed on-chain resolution transaction is required." });
+  const allEscrows = await loadEscrows();
+  const escrow = allEscrows.find((item) => item.escrowId === req.params.id);
+  if (!escrow?.dispute || escrow.status !== "Disputed") return res.status(404).json({ success: false, message: "Active dispute not found." });
+  escrow.status = Number(buyerAmount) >= Number(escrow.amount) ? "Refunded" : "Released";
+  escrow.dispute.status = "Resolved";
+  escrow.dispute.resolution = { buyerAmount: String(buyerAmount), sellerAmount: String(Number(escrow.amount) - Number(buyerAmount)), transactionHash, resolvedAt: Date.now(), resolvedBy: String(wallet).toLowerCase() };
+  await saveEscrows(allEscrows);
+  return res.json({ success: true, escrow });
+});
+
+/*
+|--------------------------------------------------------------------------
 | Cancel Pending Escrow
 |--------------------------------------------------------------------------
 */
@@ -1220,7 +1394,7 @@ app.get("/api/escrows", async (req, res) => {
   const { category, buyerWallet, wallet, role } = req.query;
   const categories = {
     pending: ["Waiting Seller", "Seller Accepted"],
-    active: ["Funds Locked", "Delivered"],
+    active: ["Funds Locked", "Delivered", "Disputed"],
     completed: ["Released"],
     cancelled: ["Cancelled"],
   };
